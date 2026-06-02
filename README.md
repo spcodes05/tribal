@@ -1,2 +1,30 @@
-# tribal
-AI-powered social networking and roommate matching app built with Flutter and NestJS to help users find activities, communities, and compatible roommates safely.
+\# Tribal: Find Your Tribe
+
+
+
+AI-powered social networking and roommate matching platform.
+
+
+
+\## Tech Stack
+
+\- Frontend: Flutter  
+
+\- Backend: Django + DRF  
+
+\- Realtime: Django Channels  
+
+\- Database: PostgreSQL (planned)
+
+
+
+\## Features
+
+\- User authentication
+
+\- Real-time chat
+
+\- Roommate matching
+
+\- Events system
+
