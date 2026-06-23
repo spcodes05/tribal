@@ -31,7 +31,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
-'daphne',
+    'daphne',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,26 +42,24 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'rest_framework',
-'channels',
+    'corsheaders',
+    'channels',
 
-
-    # Your project apps
+    # Your apps
     'apps.chat',
-'apps.users',
-'apps.events',
-'apps.roommate',
-'apps.accounts',
-
-
-
-
-
+    'apps.users',
+    'apps.events',
+    'apps.roommate',
+    'apps.accounts',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # MUST be first
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -146,3 +145,4 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer"
     }
 }
+CORS_ALLOW_ALL_ORIGINS = True
