@@ -150,6 +150,9 @@ class _SignupForm extends StatelessWidget {
                     content: Text('Account created! Welcome to the tribe 🎉'),
                   ),
                 );
+                // Continue into the profile completion flow
+                // (Phone Verification -> Gender -> Social -> Profile Setup).
+                context.push(AppRoutes.phoneVerification);
               }
             },
           ),

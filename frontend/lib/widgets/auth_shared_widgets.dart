@@ -13,8 +13,8 @@ class TribalLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Image.asset(
       AppAssets.logo,
-      width: 32,
-      height: 32,
+      width: 60,
+      height: 60,
       errorBuilder: (_, __, ___) => Container(
         width: 32,
         height: 32,
