@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'channels',
 
@@ -91,8 +92,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'tribal',
+        'USER': 'postgres',
+        'PASSWORD': 'Sd9841151995',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -135,9 +140,54 @@ STATIC_URL = 'static/'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
 }
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = "users.CustomUser"
+from datetime import timedelta
+
+REST_FRAMEWORK = {
+    # Sets JWT as the default authentication method for all API views.
+    # Any view using DRF's permission classes will automatically check
+    # the Authorization: Bearer <token> header.
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    # By default, only authenticated users can access API views.
+    # You can override this per-view using permission_classes=[AllowAny].
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+}
+
+SIMPLE_JWT = {
+    # Access token expires in 60 minutes.
+    # The client must use the refresh token to get a new one after expiry.
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+
+    # Refresh token expires in 7 days.
+    # After 7 days the user must log in again.
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    # When True, every time the refresh token is used to get a new
+    # access token, a new refresh token is also issued (rotating refresh).
+    # This is a security best practice.
+    "ROTATE_REFRESH_TOKENS": True,
+
+    # When True, the old refresh token is added to a blacklist after rotation
+    # so it can't be reused. Requires 'rest_framework_simplejwt.token_blacklist'
+    # in INSTALLED_APPS if you want to use this feature later.
+    "BLACKLIST_AFTER_ROTATION": False,
+
+    # The algorithm used to sign JWTs. HS256 = HMAC with SHA-256.
+    "ALGORITHM": "HS256",
+
+    # The field in the JWT payload that identifies the user.
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+}
 ASGI_APPLICATION = 'config.asgi.application'
 
 CHANNEL_LAYERS = {
