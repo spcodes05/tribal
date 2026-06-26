@@ -61,4 +61,55 @@ class AppStrings {
   static const String fieldRequired = 'This field is required';
   static const String invalidEmail = 'Enter a valid email address';
   static const String passwordTooShort = 'Password must be at least 6 characters';
+
+  // --- Profile Completion: Shared ---
+  static const String skipForNow = 'Skip for now';
+  static const String continueLabel = 'Continue';
+  static const String nextLabel = 'Next';
+
+  // --- Phone Verification ---
+  static const String phoneVerificationTitle = 'Verify Your Number';
+  static const String phoneVerificationSubtitle =
+      'Help us build a trusted community.';
+  static const String phoneNumberLabel = 'Phone Number';
+  static const String phoneNumberHint = '98XXXXXXXX';
+  static const String phoneTrustMessage =
+      'Phone verification improves your Trust Score';
+  static const String invalidPhone = 'Enter a valid Nepal phone number';
+
+  // --- Gender Selection ---
+  static const String genderSelectionTitle = 'Tell Us About Yourself';
+  static const String genderSelectionSubtitle =
+      'This helps us create better matches.';
+  static const String genderMale = 'Male';
+  static const String genderFemale = 'Female';
+  static const String genderNonBinary = 'Non-Binary';
+  static const String genderPreferNotToSay = 'Prefer Not To Say';
+
+  // --- Social Verification ---
+  static const String socialVerificationTitle = 'Boost Your Trust Score';
+  static const String socialVerificationSubtitle =
+      'Connect social accounts to improve credibility and matching quality.';
+  static const String connectLabel = 'Connect';
+  static const String connectedLabel = 'Connected';
+  static const String socialBenefitsTitle = 'Why connect?';
+  static const String socialBenefit1 = 'Better recommendations';
+  static const String socialBenefit2 = 'More trusted profile';
+  static const String socialBenefit3 = 'Easier tribe matching';
+
+  // --- Profile Setup ---
+  static const String profileSetupTitle = 'Create Your Tribe Profile';
+  static const String profileSetupSubtitle =
+      'Help others discover the real you.';
+  static const String profilePictureLabel = 'Profile Picture';
+  static const String aboutMeLabel = 'About Me';
+  static const String aboutMeHint =
+      'Tell people about yourself, your interests, and what kind of tribe you\'re looking for.';
+  static const String interestsLabel = 'Your Interests';
+  static const String findMyTribe = 'Find My Tribe';
+
+  // --- Finding Tribe Loading ---
+  static const String findingYourTribe = 'Finding your tribe...';
+  static const String findingYourTribeSubtitle =
+      'Matching you with people who get it.';
 }
