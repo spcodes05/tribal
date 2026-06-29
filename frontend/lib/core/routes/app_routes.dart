@@ -10,7 +10,7 @@ import '../../views/profile_completion/gender_selection_screen.dart';
 import '../../views/profile_completion/social_verification_screen.dart';
 import '../../views/profile_completion/profile_setup_screen.dart';
 import '../../views/profile_completion/finding_tribe_loading_screen.dart';
-
+import '../../views/home/home_screen.dart';
 /// Named route constants and GoRouter configuration for TRIBAL.
 ///
 /// Navigation flow:
@@ -39,12 +39,14 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
 
+
   // Profile completion flow
   static const String phoneVerification = '/phone-verification';
   static const String genderSelection = '/gender-selection';
   static const String socialVerification = '/social-verification';
   static const String profileSetup = '/profile-setup';
   static const String findingTribe = '/finding-tribe';
+  static const String home = '/home';
 
   /// The root GoRouter instance.
   static final GoRouter router = GoRouter(
@@ -68,6 +70,11 @@ class AppRoutes {
         name: 'signup',
         builder: (BuildContext context, GoRouterState state) =>
         const SignupScreen(),
+      ),
+      GoRoute(
+        path: home,
+        name: 'home',
+        builder: (context, state) => const HomeScreen(),
       ),
 
       // -- Profile Completion Flow --------------------------------------

@@ -148,9 +148,7 @@ class _LoginForm extends StatelessWidget {
             onTap: () async {
               final success = await ctrl.login();
               if (success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Logged in successfully!')),
-                );
+                GoRouter.of(context).go(AppRoutes.home);
               }
             },
           ),
