@@ -5,18 +5,14 @@ import 'package:provider/provider.dart';
 import '../../controllers/profile_setup_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/routes/app_routes.dart';
 import '../../widgets/gradient_background.dart';
 
 /// Final "Finding your tribe..." loading state shown after the user taps
 /// "Find My Tribe" on [ProfileSetupScreen].
 ///
 /// Submits the collected [OnboardingProfileModel] via
-/// [ProfileSetupController.submitProfile] (stubbed) while showing an
-/// animated TRIBAL logo and progress indicator.
-///
-/// NOTE: Per current scope, this screen does NOT navigate to a dashboard —
-/// it simply completes the loading animation and stays on screen, ready to
-/// be wired to a real destination once the dashboard is built.
+/// [ProfileSetupController.submitProfile] then navigates to [HomeScreen].
 class FindingTribeLoadingScreen extends StatefulWidget {
   const FindingTribeLoadingScreen({super.key});
 
@@ -45,9 +41,16 @@ class _FindingTribeLoadingScreenState
   Future<void> _runSubmission() async {
     final ctrl = context.read<ProfileSetupController>();
     await ctrl.submitProfile();
-    if (mounted) {
-      setState(() => _isComplete = true);
-    }
+
+    if (!mounted) return;
+    setState(() => _isComplete = true);
+
+    // Let the user see the success tick briefly, then go home.
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (!mounted) return;
+    // Use GoRouter.of(context).go() to ensure it works even inside a ShellRoute.
+    GoRouter.of(context).go(AppRoutes.home);
   }
 
   @override
@@ -72,11 +75,7 @@ class _FindingTribeLoadingScreenState
                     animation: _pulseController,
                     builder: (context, child) {
                       final scale = 1.0 + (_pulseController.value * 0.12);
-
-                      return Transform.scale(
-                        scale: scale,
-                        child: child,
-                      );
+                      return Transform.scale(scale: scale, child: child);
                     },
                     child: Container(
                       width: 160,
@@ -88,11 +87,11 @@ class _FindingTribeLoadingScreenState
                       child: Padding(
                         padding: const EdgeInsets.all(8),
                         child: ClipOval(
-                        child: Image.asset(
-                          'assets/images/logo_white.png',
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.contain,
+                          child: Image.asset(
+                            'assets/images/logo_white.png',
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
