@@ -10,6 +10,7 @@ backend/db.sqlite3
 # Django
 *.log
 .env
+*.env
 
 # Flutter
 frontend/build/
