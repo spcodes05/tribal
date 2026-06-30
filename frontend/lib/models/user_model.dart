@@ -1,86 +1,70 @@
 /// Data model representing an authenticated TRIBAL user.
 ///
-/// Designed for future backend integration: all fields map 1-to-1
-/// with the expected API response shape from the NestJS auth service.
+/// Mirrors the shape returned by the Django backend:
+///   - RegisterView / LoginView's "user" object
+///   - MeView (UserDetailSerializer) for the full profile
+///
+/// Backend fields are snake_case (full_name, is_email_verified, ...);
+/// this model exposes them as camelCase Dart fields via [fromJson].
 class UserModel {
   final String id;
   final String fullName;
   final String email;
-  final String? photoUrl;
-  final String? phone;
-  final double trustScore;
+  final String? gender;
+  final List<String> interests;
   final bool isEmailVerified;
-  final bool isPhoneVerified;
-  final DateTime createdAt;
+  final bool isOnboardingComplete;
 
   const UserModel({
     required this.id,
     required this.fullName,
     required this.email,
-    this.photoUrl,
-    this.phone,
-    this.trustScore = 0.0,
+    this.gender,
+    this.interests = const [],
     this.isEmailVerified = false,
-    this.isPhoneVerified = false,
-    required this.createdAt,
+    this.isOnboardingComplete = false,
   });
 
-  /// Creates a UserModel from a JSON map (API response).
+  /// Creates a UserModel from a JSON map.
+  ///
+  /// Handles both response shapes:
+  ///   - Register/Login: {"id":.., "full_name":.., "email":.., "is_email_verified":..}
+  ///   - Me (full detail): adds "gender", "interests": [{"id":.., "name":..}], "is_onboarding_complete"
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as String,
-      fullName: json['fullName'] as String,
-      email: json['email'] as String,
-      photoUrl: json['photoUrl'] as String?,
-      phone: json['phone'] as String?,
-      trustScore: (json['trustScore'] as num?)?.toDouble() ?? 0.0,
-      isEmailVerified: json['isEmailVerified'] as bool? ?? false,
-      isPhoneVerified: json['isPhoneVerified'] as bool? ?? false,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      id: json['id'].toString(),
+      fullName: json['full_name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      gender: json['gender'] as String?,
+      interests: (json['interests'] as List<dynamic>?)
+              ?.map((e) => e is Map ? e['name'].toString() : e.toString())
+              .toList() ??
+          const [],
+      isEmailVerified: json['is_email_verified'] as bool? ?? false,
+      isOnboardingComplete: json['is_onboarding_complete'] as bool? ?? false,
     );
   }
 
-  /// Serialises this model to a JSON map.
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'fullName': fullName,
-      'email': email,
-      'photoUrl': photoUrl,
-      'phone': phone,
-      'trustScore': trustScore,
-      'isEmailVerified': isEmailVerified,
-      'isPhoneVerified': isPhoneVerified,
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
-
-  /// Returns a copy of this model with updated fields.
   UserModel copyWith({
     String? id,
     String? fullName,
     String? email,
-    String? photoUrl,
-    String? phone,
-    double? trustScore,
+    String? gender,
+    List<String>? interests,
     bool? isEmailVerified,
-    bool? isPhoneVerified,
-    DateTime? createdAt,
+    bool? isOnboardingComplete,
   }) {
     return UserModel(
       id: id ?? this.id,
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
-      photoUrl: photoUrl ?? this.photoUrl,
-      phone: phone ?? this.phone,
-      trustScore: trustScore ?? this.trustScore,
+      gender: gender ?? this.gender,
+      interests: interests ?? this.interests,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
-      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
-      createdAt: createdAt ?? this.createdAt,
+      isOnboardingComplete: isOnboardingComplete ?? this.isOnboardingComplete,
     );
   }
 
   @override
-  String toString() =>
-      'UserModel(id: $id, fullName: $fullName, email: $email)';
+  String toString() => 'UserModel(id: $id, fullName: $fullName, email: $email)';
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/network/api_client.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
@@ -16,6 +17,13 @@ class AuthController extends ChangeNotifier {
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  /// True when the last login attempt failed specifically because the
+  /// backend's email-verification gate rejected it (LoginView returns
+  /// code: "email_not_verified"). The UI can use this to show a
+  /// "check your inbox" message instead of a generic error.
+  bool _isEmailNotVerified = false;
+  bool get isEmailNotVerified => _isEmailNotVerified;
 
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
@@ -52,6 +60,7 @@ class AuthController extends ChangeNotifier {
   Future<bool> login() async {
     if (!loginFormKey.currentState!.validate()) return false;
 
+    _isEmailNotVerified = false;
     _setStatus(AuthStatus.loading);
     try {
       _currentUser = await AuthService.instance.loginWithEmail(
@@ -60,7 +69,8 @@ class AuthController extends ChangeNotifier {
       );
       _setStatus(AuthStatus.success);
       return true;
-    } on AuthException catch (e) {
+    } on ApiException catch (e) {
+      _isEmailNotVerified = e.code == 'email_not_verified';
       _setStatus(AuthStatus.error, error: e.message);
       return false;
     } catch (_) {
@@ -83,7 +93,7 @@ class AuthController extends ChangeNotifier {
       );
       _setStatus(AuthStatus.success);
       return true;
-    } on AuthException catch (e) {
+    } on ApiException catch (e) {
       _setStatus(AuthStatus.error, error: e.message);
       return false;
     } catch (_) {
@@ -121,6 +131,7 @@ class AuthController extends ChangeNotifier {
   // ── Reset ────────────────────────────────────────────────────────────────────
 
   void resetStatus() {
+    _isEmailNotVerified = false;
     _setStatus(AuthStatus.idle, error: null);
   }
 

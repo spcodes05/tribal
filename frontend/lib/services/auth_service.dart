@@ -1,92 +1,129 @@
+import 'package:dio/dio.dart';
+import '../core/network/api_client.dart';
+import '../core/network/api_config.dart';
+import '../core/network/token_storage.dart';
 import '../models/user_model.dart';
 
 /// Authentication service layer for TRIBAL.
 ///
-/// Currently contains stub implementations that simulate network behaviour.
-/// Replace the method bodies with real Dio/Firebase calls when the backend
-/// (NestJS + Firebase Auth) is available.
+/// Talks to the Django backend's `apps.users` endpoints. Every method
+/// throws an [ApiException] on failure (network error, validation error,
+/// or auth error) — callers (controllers) catch this single type.
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
 
-  // ── Login ───────────────────────────────────────────────────────────────────
-
-  /// Authenticates a user with [email] and [password].
-  ///
-  /// Throws an [AuthException] on failure.
-  Future<UserModel> loginWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    // TODO: Replace with real API call
-    // final response = await dio.post('/auth/login', data: { email, password });
-    await Future.delayed(const Duration(seconds: 1)); // simulate network
-    return UserModel(
-      id: 'stub-uid-001',
-      fullName: 'Sampada Rai',
-      email: email,
-      trustScore: 72.0,
-      isEmailVerified: true,
-      createdAt: DateTime.now(),
-    );
-  }
+  Dio get _dio => ApiClient.instance.dio;
 
   // ── Registration ────────────────────────────────────────────────────────────
 
-  /// Registers a new user with the given credentials.
+  /// POST /api/users/register/
   ///
-  /// Throws an [AuthException] on failure.
+  /// Creates the account and stores the returned JWT tokens. Note the
+  /// backend sends a verification email (printed to the Django console in
+  /// dev) and the account is NOT fully usable — [LoginView] blocks login
+  /// for unverified emails — until that link is opened.
   Future<UserModel> registerWithEmail({
     required String fullName,
     required String email,
     required String password,
   }) async {
-    // TODO: Replace with real API call
-    // final response = await dio.post('/auth/register', data: { fullName, email, password });
-    await Future.delayed(const Duration(seconds: 1));
-    return UserModel(
-      id: 'stub-uid-002',
-      fullName: fullName,
-      email: email,
-      trustScore: 10.0,
-      isEmailVerified: false,
-      createdAt: DateTime.now(),
-    );
+    try {
+      final response = await _dio.post(
+        ApiConfig.register,
+        data: {
+          'full_name': fullName,
+          'email': email,
+          'password': password,
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final tokens = data['tokens'] as Map<String, dynamic>;
+      await TokenStorage.instance.saveTokens(
+        access: tokens['access'] as String,
+        refresh: tokens['refresh'] as String,
+      );
+
+      return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
   }
 
-  // ── Google Sign-In ───────────────────────────────────────────────────────────
+  // ── Login ───────────────────────────────────────────────────────────────────
 
-  /// Initiates Google OAuth flow.
+  /// POST /api/users/login/
   ///
-  /// TODO: Integrate google_sign_in package + Firebase Auth.
+  /// Throws [ApiException] with `code == 'email_not_verified'` if the
+  /// backend rejects the login because the email link hasn't been clicked.
+  Future<UserModel> loginWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiConfig.login,
+        data: {'email': email, 'password': password},
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final tokens = data['tokens'] as Map<String, dynamic>;
+      await TokenStorage.instance.saveTokens(
+        access: tokens['access'] as String,
+        refresh: tokens['refresh'] as String,
+      );
+
+      return UserModel.fromJson(data['user'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  // ── Email Verification ──────────────────────────────────────────────────────
+
+  /// POST /api/users/verify-email/
+  /// Call this with the token extracted from the verification link/email.
+  Future<void> verifyEmail(String token) async {
+    try {
+      await _dio.post(ApiConfig.verifyEmail, data: {'token': token});
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  // ── Current user ─────────────────────────────────────────────────────────────
+
+  /// GET /api/users/me/
+  Future<UserModel> getCurrentUser() async {
+    try {
+      final response = await _dio.get(ApiConfig.me);
+      return UserModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  // ── Google / Apple Sign-In ───────────────────────────────────────────────────
+  // Not implemented on the backend yet — kept as explicit stubs so the UI
+  // can show a clear "not available yet" message instead of pretending
+  // to succeed.
+
   Future<UserModel> signInWithGoogle() async {
-    await Future.delayed(const Duration(seconds: 1));
-    throw UnimplementedError('Google Sign-In not yet integrated.');
+    throw const ApiException('Google Sign-In is not available yet.');
   }
 
-  // ── Apple Sign-In ────────────────────────────────────────────────────────────
-
-  /// Initiates Apple Sign-In flow.
-  ///
-  /// TODO: Integrate sign_in_with_apple package + Firebase Auth.
   Future<UserModel> signInWithApple() async {
-    await Future.delayed(const Duration(seconds: 1));
-    throw UnimplementedError('Apple Sign-In not yet integrated.');
+    throw const ApiException('Apple Sign-In is not available yet.');
   }
 
   // ── Logout ───────────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
-    // TODO: Clear tokens, call Firebase signOut
-    await Future.delayed(const Duration(milliseconds: 300));
+    await TokenStorage.instance.clear();
   }
-}
 
-/// Typed exception thrown by [AuthService] methods.
-class AuthException implements Exception {
-  final String message;
-  const AuthException(this.message);
+  // ── Session check ────────────────────────────────────────────────────────────
 
-  @override
-  String toString() => 'AuthException: $message';
+  Future<bool> hasActiveSession() => TokenStorage.instance.hasTokens();
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../core/network/api_client.dart';
 import '../models/onboarding_profile_model.dart';
+import '../services/onboarding_service.dart';
 
 /// Controller for the post-signup profile completion flow:
 /// Phone Verification → Gender Selection → Social Verification → Profile Setup.
@@ -123,17 +125,44 @@ class ProfileSetupController extends ChangeNotifier {
   bool _isSubmittingProfile = false;
   bool get isSubmittingProfile => _isSubmittingProfile;
 
-  /// Simulates submitting the full profile to the backend.
-  /// Replace with a real Dio POST to `/users/profile` once available.
-  Future<void> submitProfile() async {
+  String? _submitError;
+  String? get submitError => _submitError;
+
+  /// Submits gender and interests to the backend.
+  ///
+  /// Both `/api/users/gender/` and `/api/users/interests/` require the
+  /// user's email to already be verified (403 otherwise — see
+  /// LoginView/GenderView in the Django backend). Phone verification,
+  /// social connections, and "about me" are currently UI-only — there is
+  /// no backend endpoint for them yet, so they aren't sent.
+  Future<bool> submitProfile() async {
     _isSubmittingProfile = true;
+    _submitError = null;
     notifyListeners();
 
-    // TODO: Replace with real API call using profile.toJson()
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      if (profile.gender != null) {
+        await OnboardingService.instance.submitGender(profile.gender!.apiValue);
+      }
 
-    _isSubmittingProfile = false;
-    notifyListeners();
+      if (profile.interests.isNotEmpty) {
+        await OnboardingService.instance.submitInterests(profile.interests.toList());
+      }
+
+      _isSubmittingProfile = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _isSubmittingProfile = false;
+      _submitError = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _isSubmittingProfile = false;
+      _submitError = 'Something went wrong while saving your profile.';
+      notifyListeners();
+      return false;
+    }
   }
 
   @override

@@ -164,11 +164,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         self.update_onboarding_status()
         
     def update_onboarding_status(self):
-        self.is_onboarding_complete = (
-        self.is_email_verified
-        and self.gender
-        and self.interests.exists()
-         )
+        self.is_onboarding_complete = bool(
+            self.is_email_verified
+            and self.gender
+            and self.interests.exists()
+        )
         self.save(update_fields=["is_onboarding_complete"])
 
     def check_onboarding_complete(self):

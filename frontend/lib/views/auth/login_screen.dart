@@ -136,7 +136,9 @@ class _LoginForm extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
-                ctrl.errorMessage!,
+                ctrl.isEmailNotVerified
+                    ? '${ctrl.errorMessage!} Check your email for the verification link (in dev, it\'s printed in the Django server console).'
+                    : ctrl.errorMessage!,
                 style: GoogleFonts.poppins(fontSize: 12, color: Colors.red),
               ),
             ),

@@ -40,9 +40,22 @@ class _FindingTribeLoadingScreenState
 
   Future<void> _runSubmission() async {
     final ctrl = context.read<ProfileSetupController>();
-    await ctrl.submitProfile();
+    final success = await ctrl.submitProfile();
 
     if (!mounted) return;
+
+    if (!success) {
+      // Show the error and let the user retry instead of silently
+      // pretending it worked.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ctrl.submitError ?? 'Failed to save your profile.'),
+          action: SnackBarAction(label: 'Retry', onPressed: _runSubmission),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isComplete = true);
 
     // Let the user see the success tick briefly, then go home.

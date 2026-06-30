@@ -1,6 +1,39 @@
 /// Enum of supported genders for the gender selection step.
 enum Gender { male, female, nonBinary, preferNotToSay }
 
+/// Maps [Gender] to the exact string values Django's `GENDER_CHOICES`
+/// expects (`backend/apps/users/models.py`). Do not use `.name` directly —
+/// it produces `nonBinary`/`preferNotToSay`, which the backend rejects.
+extension GenderApiValue on Gender {
+  String get apiValue {
+    switch (this) {
+      case Gender.male:
+        return 'male';
+      case Gender.female:
+        return 'female';
+      case Gender.nonBinary:
+        return 'non_binary';
+      case Gender.preferNotToSay:
+        return 'prefer_not_to_say';
+    }
+  }
+
+  static Gender? fromApiValue(String? value) {
+    switch (value) {
+      case 'male':
+        return Gender.male;
+      case 'female':
+        return Gender.female;
+      case 'non_binary':
+        return Gender.nonBinary;
+      case 'prefer_not_to_say':
+        return Gender.preferNotToSay;
+      default:
+        return null;
+    }
+  }
+}
+
 /// Enum of supported social platforms for the social verification step.
 enum SocialPlatform { instagram, linkedin, facebook, github, spotify }
 
@@ -47,7 +80,7 @@ class OnboardingProfileModel {
       'phoneNumber':
       phoneNumber != null ? '$countryCode$phoneNumber' : null,
       'isPhoneVerified': isPhoneVerified,
-      'gender': gender?.name,
+      'gender': gender?.apiValue,
       'connectedSocials': connectedSocials.entries
           .where((e) => e.value)
           .map((e) => e.key.name)
@@ -68,19 +101,22 @@ class SocialPlatformInfo {
 }
 
 /// Display metadata for each interest chip in Profile Setup.
+///
+/// IMPORTANT: this list must exactly match `PREDEFINED_INTERESTS` in
+/// `backend/apps/users/models.py`. The backend's `SaveInterestsSerializer`
+/// rejects any name not in that list with a 400 error, so the two lists
+/// have been kept in sync here.
 const List<String> kAvailableInterests = [
-  'Trekking',
+  'Hiking',
   'Futsal',
   'Board Games',
-  'Tech',
-  'Study Groups',
-  'Music',
+  'Book Club',
   'Photography',
+  'Cooking',
   'Travel',
+  'Music',
   'Gaming',
-  'Food',
   'Yoga',
-  'Movies',
-  'Startups',
-  'Languages',
+  'Language',
+  'Treks',
 ];
