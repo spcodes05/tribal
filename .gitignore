@@ -10,7 +10,6 @@ backend/db.sqlite3
 # Django
 *.log
 .env
-*.env
 
 # Flutter
 frontend/build/
@@ -19,3 +18,19 @@ frontend/.dart_tool/
 # IDE
 .vscode/
 .idea/
+
+#Environment
+.env
+*.env
+
+#Python virtual environment
+venv/
+backend/venv/
+
+#macOS
+.DS_Store
+
+#Flutter
+frontend/.packages
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
