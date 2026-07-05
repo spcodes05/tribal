@@ -34,3 +34,6 @@ backend/venv/
 frontend/.packages
 frontend/.flutter-plugins
 frontend/.flutter-plugins-dependencies
+
+.postman/
+postman/
