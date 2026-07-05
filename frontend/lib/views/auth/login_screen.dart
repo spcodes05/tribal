@@ -135,11 +135,37 @@ class _LoginForm extends StatelessWidget {
           if (ctrl.errorMessage != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                ctrl.isEmailNotVerified
-                    ? '${ctrl.errorMessage!} Check your email for the verification link (in dev, it\'s printed in the Django server console).'
-                    : ctrl.errorMessage!,
-                style: GoogleFonts.poppins(fontSize: 12, color: Colors.red),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ctrl.errorMessage!,
+                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.red),
+                  ),
+                  if (ctrl.isEmailNotVerified)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: GestureDetector(
+                        onTap: () => context.push(
+                          Uri(
+                            path: AppRoutes.verifyEmail,
+                            queryParameters: {
+                              'email': ctrl.loginEmailController.text.trim(),
+                            },
+                          ).toString(),
+                        ),
+                        child: Text(
+                          'Verify your email now',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/home_models.dart';
+import '../../widgets/tribal_bottom_nav.dart';
 
 /// Home screen for TRIBAL.
 ///
@@ -88,7 +89,7 @@ class HomeScreen extends StatelessWidget {
       ),
       floatingActionButton: _AddFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: const _BottomNav(),
+      bottomNavigationBar: const TribalBottomNav(),
     );
   }
 }
@@ -685,92 +686,6 @@ class _AddFab extends StatelessWidget {
       shape: const CircleBorder(),
       elevation: 4,
       child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-    );
-  }
-}
-
-// =============================================================================
-// Bottom Navigation Bar
-// =============================================================================
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav();
-
-  @override
-  Widget build(BuildContext context) {
-    // Using index 0 (Home) as active by default.
-    // Lift state to a controller when wiring up the rest of the app.
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border(
-          top: BorderSide(color: AppColors.divider, width: 1),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                isActive: true,
-              ),
-              _NavItem(
-                icon: Icons.explore_outlined,
-                label: 'Explore',
-                isActive: false,
-              ),
-              _NavItem(
-                icon: Icons.chat_bubble_outline_rounded,
-                label: 'Chat',
-                isActive: false,
-              ),
-              _NavItem(
-                icon: Icons.people_outline_rounded,
-                label: 'Roommate',
-                isActive: false,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive ? AppColors.primary : AppColors.textSecondary;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-            color: color,
-          ),
-        ),
-      ],
     );
   }
 }

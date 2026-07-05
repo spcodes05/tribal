@@ -28,6 +28,12 @@ class AuthController extends ChangeNotifier {
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
 
+  /// The email a verification link/token was most recently sent to.
+  /// Set after registration or a resend, so the verify-email screen
+  /// always knows which address it's dealing with.
+  String? _pendingVerificationEmail;
+  String? get pendingVerificationEmail => _pendingVerificationEmail;
+
   bool _obscurePassword = true;
   bool get obscurePassword => _obscurePassword;
 
@@ -91,6 +97,43 @@ class AuthController extends ChangeNotifier {
         email: signupEmailController.text.trim(),
         password: signupPasswordController.text,
       );
+      _pendingVerificationEmail = signupEmailController.text.trim();
+      _setStatus(AuthStatus.success);
+      return true;
+    } on ApiException catch (e) {
+      _setStatus(AuthStatus.error, error: e.message);
+      return false;
+    } catch (_) {
+      _setStatus(AuthStatus.error, error: 'Something went wrong. Please try again.');
+      return false;
+    }
+  }
+
+  // ── Email Verification ─────────────────────────────────────────────────────
+
+  /// Submits a verification token (pasted from the email link, or typed
+  /// in manually during local dev when reading it off the Django console).
+  Future<bool> verifyEmail(String token) async {
+    _setStatus(AuthStatus.loading);
+    try {
+      await AuthService.instance.verifyEmail(token.trim());
+      _setStatus(AuthStatus.success);
+      return true;
+    } on ApiException catch (e) {
+      _setStatus(AuthStatus.error, error: e.message);
+      return false;
+    } catch (_) {
+      _setStatus(AuthStatus.error, error: 'Something went wrong. Please try again.');
+      return false;
+    }
+  }
+
+  /// Asks the backend to generate a fresh token and re-send the email.
+  Future<bool> resendVerification(String email) async {
+    _setStatus(AuthStatus.loading);
+    try {
+      await AuthService.instance.resendVerification(email.trim());
+      _pendingVerificationEmail = email.trim();
       _setStatus(AuthStatus.success);
       return true;
     } on ApiException catch (e) {

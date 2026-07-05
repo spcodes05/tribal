@@ -55,6 +55,13 @@ class VerifyEmailSerializer(serializers.Serializer):
     # UUIDField automatically validates that the value is a valid UUID format.
 
 
+class ResendVerificationSerializer(serializers.Serializer):
+    """
+    Accepts an email address to resend the verification link to.
+    """
+    email = serializers.EmailField()
+
+
 # ─────────────────────────────────────────────
 # GENDER
 # ─────────────────────────────────────────────

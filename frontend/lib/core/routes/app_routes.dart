@@ -5,6 +5,7 @@ import '../../controllers/profile_setup_controller.dart';
 import '../../views/onboarding/onboarding_screen.dart';
 import '../../views/auth/login_screen.dart';
 import '../../views/auth/signup_screen.dart';
+import '../../views/auth/verify_email_screen.dart';
 import '../../views/profile_completion/phone_verification_screen.dart';
 import '../../views/profile_completion/gender_selection_screen.dart';
 import '../../views/profile_completion/social_verification_screen.dart';
@@ -38,6 +39,7 @@ class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String signup = '/signup';
+  static const String verifyEmail = '/verify-email';
 
 
   // Profile completion flow
@@ -70,6 +72,13 @@ class AppRoutes {
         name: 'signup',
         builder: (BuildContext context, GoRouterState state) =>
         const SignupScreen(),
+      ),
+      GoRoute(
+        path: verifyEmail,
+        name: 'verifyEmail',
+        builder: (BuildContext context, GoRouterState state) =>
+            VerifyEmailScreen(
+                initialEmail: state.uri.queryParameters['email']),
       ),
       GoRoute(
         path: home,

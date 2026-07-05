@@ -12,6 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from .serializers import (
     RegisterSerializer,
     VerifyEmailSerializer,
+    ResendVerificationSerializer,
     GenderSerializer,
     SaveInterestsSerializer,
     UserDetailSerializer,
@@ -137,6 +138,57 @@ class VerifyEmailView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ─────────────────────────────────────────────
+# RESEND VERIFICATION
+# ─────────────────────────────────────────────
+
+class ResendVerificationView(APIView):
+    """
+    POST /api/users/resend-verification/
+    Body: { "email": "user@example.com" }
+
+    Generates a fresh verification token (invalidating the old one) and
+    re-sends the verification email. This is what closes the loop that
+    was previously missing: without it, a user whose original email
+    never arrived (or whose token expired) had no way to get a new one.
+
+    Always returns a generic success message, whether or not the email
+    exists, so this endpoint can't be used to enumerate registered users.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResendVerificationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email = serializer.validated_data["email"].lower().strip()
+        generic_response = Response(
+            {"message": "If that email is registered, a new verification link has been sent."},
+            status=status.HTTP_200_OK,
+        )
+
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return generic_response
+
+        if user.is_email_verified:
+            return Response(
+                {"detail": "Email already verified."},
+                status=status.HTTP_200_OK,
+            )
+
+        user.generate_verification_token()
+
+        try:
+            send_verification_email(user)
+        except Exception as e:
+            print(f"[WARNING] Failed to send verification email: {e}")
+
+        return generic_response
 
 
 # ─────────────────────────────────────────────

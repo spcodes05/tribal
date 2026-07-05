@@ -14,6 +14,7 @@ class ApiConfig {
   // ── Users endpoints (apps/users/urls.py) ──────────────────────────────────
   static const String register = '/users/register/';
   static const String verifyEmail = '/users/verify-email/';
+  static const String resendVerification = '/users/resend-verification/';
   static const String login = '/users/login/';
   static const String gender = '/users/gender/';
   static const String interests = '/users/interests/';

@@ -150,9 +150,16 @@ class _SignupForm extends StatelessWidget {
                     content: Text('Account created! Welcome to the tribe 🎉'),
                   ),
                 );
-                // Continue into the profile completion flow
-                // (Phone Verification -> Gender -> Social -> Profile Setup).
-                context.push(AppRoutes.phoneVerification);
+                // Email must be verified before the onboarding endpoints
+                // (gender, interests) will accept requests — send the user
+                // there first instead of straight into the profile flow.
+                final email = ctrl.signupEmailController.text.trim();
+                context.push(
+                  Uri(
+                    path: AppRoutes.verifyEmail,
+                    queryParameters: {'email': email},
+                  ).toString(),
+                );
               }
             },
           ),

@@ -92,6 +92,18 @@ class AuthService {
     }
   }
 
+  /// POST /api/users/resend-verification/
+  /// Generates a fresh token server-side and re-sends the verification
+  /// email. Use this when the original email never arrived or the link
+  /// expired (tokens are valid for 24 hours).
+  Future<void> resendVerification(String email) async {
+    try {
+      await _dio.post(ApiConfig.resendVerification, data: {'email': email});
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   // ── Current user ─────────────────────────────────────────────────────────────
 
   /// GET /api/users/me/
