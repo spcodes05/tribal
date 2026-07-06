@@ -1,95 +1,112 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
-import '../../models/home_models.dart';
+import '../../core/routes/app_routes.dart';
+import '../../models/activity_model.dart';
 import '../../widgets/tribal_bottom_nav.dart';
 
-/// Home screen for TRIBAL.
-///
-/// Displays:
-///   - Greeting header with notification bell
-///   - Search bar with current city tag
-///   - "People You Might Vibe With" horizontal list
-///   - "Activities Near You" horizontal cards
-///   - Bottom navigation bar
-///   - Floating "+" action button
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  // ---------------------------------------------------------------------------
-  // Placeholder data — replace with real API calls via a HomeController
-  // ---------------------------------------------------------------------------
-  static const _people = [
-    PersonMatch(
-      name: 'Aarav S.',
-      matchPercent: 92,
-      interests: ['Hiking', 'Coffee'],
-    ),
-    PersonMatch(
-      name: 'Priya M.',
-      matchPercent: 88,
-      interests: ['Music', 'Yoga'],
-    ),
-    PersonMatch(
-      name: 'Rohan K.',
-      matchPercent: 85,
-      interests: ['Art', 'Travel'],
-    ),
-  ];
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
-  static const _activities = [
-    ActivityCard(
-      title: 'Weekend Shivapuri Hike',
-      distanceKm: '4.2',
-      matchPercent: 95,
-    ),
-    ActivityCard(
-      title: 'Evening Jazz Night',
-      distanceKm: '1.8',
-      matchPercent: 89,
-    ),
-  ];
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<HomeController>().loadHomeFeed();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _GreetingHeader(userName: 'Sampada'),
-                    const SizedBox(height: 16),
-                    const _SearchBar(city: 'KTM'),
-                    const SizedBox(height: 28),
-                    _SectionHeader(
-                      title: 'People You Might Vibe With',
-                      onSeeAll: () {},
+    return Consumer<HomeController>(
+      builder: (context, ctrl, _) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: RefreshIndicator(
+              color: AppColors.primary,
+              onRefresh: ctrl.loadHomeFeed,
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _GreetingHeader(ctrl: ctrl)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  const SliverToBoxAdapter(child: _SearchBarTap()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 28)),
+
+                  if (ctrl.isLoading && ctrl.activities.isEmpty)
+                    const SliverFillRemaining(
+                      child: Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
+                    )
+                  else if (ctrl.error != null && ctrl.activities.isEmpty)
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(ctrl.error!, style: GoogleFonts.poppins(color: Colors.red)),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: ctrl.loadHomeFeed,
+                              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                              child: Text('Retry', style: GoogleFonts.poppins(color: Colors.white)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else ...[
+                    SliverToBoxAdapter(
+                      child: _SectionHeader(
+                        title: 'People You Might Vibe With',
+                        onSeeAll: () => context.push(AppRoutes.seeAllPeople),
+                      ),
                     ),
-                    const SizedBox(height: 14),
-                    _PeopleList(people: _people),
-                    const SizedBox(height: 28),
-                    _SectionHeader(
-                      title: 'Activities Near You',
-                      onSeeAll: () {},
+                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                    SliverToBoxAdapter(
+                      child: ctrl.people.isEmpty
+                          ? _EmptyHint(text: 'No people to show yet.')
+                          : _PeopleList(people: ctrl.people),
                     ),
-                    const SizedBox(height: 14),
-                    _ActivitiesList(activities: _activities),
+                    const SliverToBoxAdapter(child: SizedBox(height: 28)),
+                    SliverToBoxAdapter(
+                      child: _SectionHeader(
+                        title: 'Activities Near You',
+                        onSeeAll: () => context.push(AppRoutes.seeAllActivities),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                    SliverToBoxAdapter(
+                      child: ctrl.activities.isEmpty
+                          ? _EmptyHint(text: 'No activities yet. Create one!')
+                          : _ActivitiesList(activities: ctrl.activities),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
-                ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: _AddFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: const TribalBottomNav(),
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => context.push(AppRoutes.createActivity),
+            backgroundColor: AppColors.primary,
+            shape: const CircleBorder(),
+            elevation: 4,
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          bottomNavigationBar: const TribalBottomNav(),
+        );
+      },
     );
   }
 }
@@ -99,9 +116,8 @@ class HomeScreen extends StatelessWidget {
 // =============================================================================
 
 class _GreetingHeader extends StatelessWidget {
-  final String userName;
-
-  const _GreetingHeader({required this.userName});
+  final HomeController ctrl;
+  const _GreetingHeader({required this.ctrl});
 
   @override
   Widget build(BuildContext context) {
@@ -109,71 +125,68 @@ class _GreetingHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Row(
         children: [
-          // Avatar
           const CircleAvatar(
             radius: 24,
             backgroundColor: AppColors.surface,
-            child: Icon(
-              Icons.person_outline_rounded,
-              color: AppColors.textSecondary,
-              size: 26,
-            ),
+            child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 26),
           ),
           const SizedBox(width: 12),
-          // Welcome text
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Welcome back',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                Text(
-                  'Hey $userName',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                Text('Welcome back',
+                    style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
+                Text('Hey there 👋',
+                    style: GoogleFonts.poppins(
+                        fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
               ],
             ),
           ),
-          // Bell icon
-          Stack(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  color: AppColors.textPrimary,
-                  size: 22,
-                ),
-              ),
-              // Notification dot
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
+          // Bell with unread badge
+          GestureDetector(
+            onTap: () => context.push(AppRoutes.notifications),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Icon(Icons.notifications_outlined,
+                      color: AppColors.textPrimary, size: 22),
                 ),
-              ),
-            ],
+                if (ctrl.unreadNotifications > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        ctrl.unreadNotifications > 9 ? '9+' : '${ctrl.unreadNotifications}',
+                        style: GoogleFonts.poppins(
+                            fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white),
+                      ),
+                    ),
+                  )
+                else
+                  Positioned(
+                    top: 8, right: 8,
+                    child: Container(
+                      width: 8, height: 8,
+                      decoration: const BoxDecoration(
+                          color: AppColors.primary, shape: BoxShape.circle),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -182,72 +195,52 @@ class _GreetingHeader extends StatelessWidget {
 }
 
 // =============================================================================
-// Search Bar
+// Search Bar (tappable — navigates to search screen)
 // =============================================================================
 
-class _SearchBar extends StatelessWidget {
-  final String city;
-
-  const _SearchBar({required this.city});
+class _SearchBarTap extends StatelessWidget {
+  const _SearchBarTap();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: AppColors.inputFill,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.inputBorder),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 14),
-            Icon(
-              Icons.search_rounded,
-              color: AppColors.textHint,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Find activities or people...',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  color: AppColors.textHint,
+      child: GestureDetector(
+        onTap: () => context.push(AppRoutes.search),
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppColors.inputFill,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.inputBorder),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 14),
+              Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Find activities or people...',
+                    style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textHint)),
+              ),
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 14),
+                    const SizedBox(width: 3),
+                    Text('KTM',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  ],
                 ),
               ),
-            ),
-            // City tag
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.location_on_rounded,
-                    color: AppColors.primary,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    city,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -261,7 +254,6 @@ class _SearchBar extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final VoidCallback onSeeAll;
-
   const _SectionHeader({required this.title, required this.onSeeAll});
 
   @override
@@ -271,24 +263,14 @@ class _SectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          Text(title,
+              style: GoogleFonts.poppins(
+                  fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           GestureDetector(
             onTap: onSeeAll,
-            child: Text(
-              'See all',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.primary,
-              ),
-            ),
+            child: Text('See all',
+                style: GoogleFonts.poppins(
+                    fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.primary)),
           ),
         ],
       ),
@@ -301,8 +283,7 @@ class _SectionHeader extends StatelessWidget {
 // =============================================================================
 
 class _PeopleList extends StatelessWidget {
-  final List<PersonMatch> people;
-
+  final List<PersonMatchModel> people;
   const _PeopleList({required this.people});
 
   @override
@@ -314,15 +295,14 @@ class _PeopleList extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: people.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) => _PersonCard(person: people[index]),
+        itemBuilder: (_, i) => _PersonCard(person: people[i]),
       ),
     );
   }
 }
 
 class _PersonCard extends StatelessWidget {
-  final PersonMatch person;
-
+  final PersonMatchModel person;
   const _PersonCard({required this.person});
 
   @override
@@ -334,18 +314,11 @@ class _PersonCard extends StatelessWidget {
         color: AppColors.background,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Avatar + match badge
           Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
@@ -353,91 +326,36 @@ class _PersonCard extends StatelessWidget {
               const CircleAvatar(
                 radius: 30,
                 backgroundColor: AppColors.surface,
-                child: Icon(
-                  Icons.person_outline_rounded,
-                  color: AppColors.textSecondary,
-                  size: 30,
-                ),
+                child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 30),
               ),
               Positioned(
                 bottom: -10,
-                child: _MatchBadge(percent: person.matchPercent),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
+                  child: Text('Vibe ✨',
+                      style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 18),
-          // Name
-          Text(
-            person.name,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          Text(person.fullName,
+              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 8),
-          // Interest chips
           Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            alignment: WrapAlignment.center,
-            children: person.interests
-                .map((i) => _SmallChip(label: i))
+            spacing: 4, runSpacing: 4, alignment: WrapAlignment.center,
+            children: person.interests.take(2)
+                .map((i) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+                      child: Text(i,
+                          style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+                    ))
                 .toList(),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Dark-red "92% match" badge shown below the avatar.
-class _MatchBadge extends StatelessWidget {
-  final int percent;
-
-  const _MatchBadge({required this.percent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        '$percent% match',
-        style: GoogleFonts.poppins(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-      ),
-    );
-  }
-}
-
-/// Tiny chip shown under a person's name listing their interests.
-class _SmallChip extends StatelessWidget {
-  final String label;
-
-  const _SmallChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.poppins(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary,
-        ),
       ),
     );
   }
@@ -448,8 +366,7 @@ class _SmallChip extends StatelessWidget {
 // =============================================================================
 
 class _ActivitiesList extends StatelessWidget {
-  final List<ActivityCard> activities;
-
+  final List<ActivityCardModel> activities;
   const _ActivitiesList({required this.activities});
 
   @override
@@ -461,231 +378,175 @@ class _ActivitiesList extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: activities.length,
         separatorBuilder: (_, __) => const SizedBox(width: 14),
-        itemBuilder: (context, index) =>
-            _ActivityCardWidget(activity: activities[index]),
+        itemBuilder: (_, i) => _ActivityCardWidget(activity: activities[i]),
       ),
     );
   }
 }
 
 class _ActivityCardWidget extends StatelessWidget {
-  final ActivityCard activity;
-
+  final ActivityCardModel activity;
   const _ActivityCardWidget({required this.activity});
 
   @override
   Widget build(BuildContext context) {
-    // Card is roughly 75% of screen width for a peek effect
     final cardWidth = MediaQuery.of(context).size.width * 0.72;
 
-    return Container(
-      width: cardWidth,
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: AppColors.surface,
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Background image or gradient placeholder
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF4A7A5A),
-                  const Color(0xFF2E5E40),
-                  const Color(0xFF1A3D28),
-                ],
-              ),
-            ),
-            child: const Icon(
-              Icons.landscape_rounded,
-              color: Colors.white24,
-              size: 80,
-            ),
-          ),
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.activityDetail, extra: activity.id),
+      child: Container(
+        width: cardWidth,
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: AppColors.surface),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background
+            activity.imageUrl != null && activity.imageUrl!.isNotEmpty
+                ? Image.network(activity.imageUrl!, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _PlaceholderBg())
+                : _PlaceholderBg(),
 
-          // Overlay gradient for text readability
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.65),
-                  ],
-                  stops: const [0.4, 1.0],
+            // Gradient overlay
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.65)],
+                    stops: const [0.4, 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // Distance pill (top-left)
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.45),
-                borderRadius: BorderRadius.circular(20),
+            // Distance pill
+            Positioned(
+              top: 12, left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.45), borderRadius: BorderRadius.circular(20)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on_rounded, color: Colors.white, size: 12),
+                    const SizedBox(width: 3),
+                    Text(
+                      activity.distanceKm != null ? '${activity.distanceKm} km' : activity.location,
+                      style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
+            ),
+
+            // Bottom content
+            Positioned(
+              left: 12, right: 12, bottom: 14,
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Icon(
-                    Icons.location_on_rounded,
-                    color: Colors.white,
-                    size: 12,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${activity.distanceKm} km',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _StackedAvatars(count: activity.memberCount),
+                        const SizedBox(height: 6),
+                        Text(activity.title,
+                            style: GoogleFonts.poppins(
+                                fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
                     ),
                   ),
+                  if (activity.matchPercent != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.local_fire_department_rounded, color: Colors.orangeAccent, size: 13),
+                          const SizedBox(width: 3),
+                          Text('${activity.matchPercent}% Match',
+                              style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-          ),
-
-          // Bottom content: avatars + title + match badge
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 14,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Stacked mini avatars
-                      _StackedAvatars(),
-                      const SizedBox(height: 6),
-                      Text(
-                        activity.title,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Match badge
-                Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.local_fire_department_rounded,
-                        color: Colors.orangeAccent,
-                        size: 13,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${activity.matchPercent}% Match',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Three overlapping placeholder avatars shown on the activity card.
+class _PlaceholderBg extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+        colors: [Color(0xFF4A7A5A), Color(0xFF1A3D28)],
+      ),
+    ),
+    child: const Icon(Icons.landscape_rounded, color: Colors.white24, size: 80),
+  );
+}
+
 class _StackedAvatars extends StatelessWidget {
-  const _StackedAvatars();
+  final int count;
+  const _StackedAvatars({required this.count});
 
   @override
   Widget build(BuildContext context) {
     const avatarSize = 26.0;
     const overlap = 10.0;
+    final shown = count.clamp(0, 3);
+    final extra = count - shown;
 
     return SizedBox(
       height: avatarSize,
-      width: avatarSize * 3 - overlap * 2 + 24,
+      width: avatarSize * (shown + (extra > 0 ? 1 : 0)) - overlap * shown + 10,
       child: Stack(
         children: [
-          for (int i = 0; i < 3; i++)
+          for (int i = 0; i < shown; i++)
             Positioned(
               left: i * (avatarSize - overlap),
               child: CircleAvatar(
                 radius: avatarSize / 2,
-                backgroundColor: Colors.grey[300 + (i * 100)],
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: 14,
-                ),
+                backgroundColor: Colors.grey[300 + (i * 100 > 300 ? 300 : i * 100)],
+                child: const Icon(Icons.person_rounded, color: Colors.white, size: 14),
               ),
             ),
-          // "+4" badge
-          Positioned(
-            left: 3 * (avatarSize - overlap),
-            child: CircleAvatar(
-              radius: avatarSize / 2,
-              backgroundColor: AppColors.surface,
-              child: Text(
-                '+4',
-                style: GoogleFonts.poppins(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                ),
+          if (extra > 0)
+            Positioned(
+              left: shown * (avatarSize - overlap),
+              child: CircleAvatar(
+                radius: avatarSize / 2,
+                backgroundColor: AppColors.surface,
+                child: Text('+$extra',
+                    style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 }
 
-// =============================================================================
-// Floating Action Button
-// =============================================================================
-
-class _AddFab extends StatelessWidget {
+class _EmptyHint extends StatelessWidget {
+  final String text;
+  const _EmptyHint({required this.text});
   @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () {},
-      backgroundColor: AppColors.primary,
-      shape: const CircleBorder(),
-      elevation: 4,
-      child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    child: Text(text, style: GoogleFonts.poppins(color: AppColors.textSecondary, fontSize: 13)),
+  );
 }

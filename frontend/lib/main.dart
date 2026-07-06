@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'controllers/home_controller.dart';
+import 'controllers/auth_controller.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
 
@@ -34,15 +37,20 @@ class TribalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'TRIBAL',
-      debugShowCheckedModeBanner: false,
-
-      // Global theme
-      theme: AppTheme.light,
-
-      // GoRouter config
-      routerConfig: AppRoutes.router,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthController()),
+        // HomeController is app-wide so it persists across navigation
+        // (keeps feed data, notification count, etc. without re-fetching
+        // every time the user navigates back to home).
+        ChangeNotifierProvider(create: (_) => HomeController()),
+      ],
+      child: MaterialApp.router(
+        title: 'TRIBAL',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        routerConfig: AppRoutes.router,
+      ),
     );
   }
 }

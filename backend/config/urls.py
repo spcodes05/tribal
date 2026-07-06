@@ -9,4 +9,5 @@ urlpatterns = [
     path("api/token/refresh/", TokenRefreshView.as_view()),
     path("api/chat/", include("apps.chat.urls")),
     path("api/roommate/", include("apps.roommate.urls")),
+    path("api/events/", include("apps.events.urls")),
 ]
