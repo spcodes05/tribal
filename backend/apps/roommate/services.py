@@ -110,6 +110,8 @@ def find_best_matches(
                 "profile": candidate_profile,
                 "score": result["total_score"],
                 "breakdown": result["breakdown"],
+                "deal_breaker": result.get("deal_breaker", False),
+                "deal_breaker_reasons": result.get("deal_breaker_reasons", []),
             }
         )
 
@@ -134,7 +136,11 @@ def persist_matches_for_user(
             user=user,
             matched_user_id=match["user_id"],
             compatibility_score=match["score"],
-            score_breakdown=match["breakdown"],
+            score_breakdown={
+                **match["breakdown"],
+                "_deal_breaker": match.get("deal_breaker", False),
+                "_deal_breaker_reasons": match.get("deal_breaker_reasons", []),
+            },
         )
         for match in matches
     ]

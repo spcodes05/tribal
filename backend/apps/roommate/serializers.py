@@ -176,3 +176,7 @@ class RoommateMatchResultSerializer(serializers.Serializer):
     profile = RoommateProfileSummarySerializer()
     score = serializers.FloatField()
     breakdown = ScoreBreakdownSerializer()
+    deal_breaker = serializers.BooleanField(required=False, default=False)
+    deal_breaker_reasons = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list
+    )

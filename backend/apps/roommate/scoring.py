@@ -73,6 +73,82 @@ FOOD_COMPATIBILITY = {
 
 GUESTS_ORDER = {"rarely": 0, "sometimes": 1, "frequently": 2}
 
+# ── Deal breakers ────────────────────────────────────────────────────────
+# Applied AFTER the weighted score is finalized. These never touch WEIGHTS
+# or any score_* function — they only cap total_score when triggered.
+DEAL_BREAKER_CAPS = {
+    "smoking_conflict": 40,
+    "budget_conflict": 35,
+    "cleanliness_conflict": 45,
+}
+
+# "Severe mismatch" = the gap between budget ranges is at least this
+# fraction of the reference midpoint, once there's no overlap at all.
+BUDGET_DEAL_BREAKER_GAP_RATIO = 0.5
+
+# Cleanliness is on a 1–5 scale, so a diff of 4 means exactly 1 vs 5.
+CLEANLINESS_DEAL_BREAKER_DIFF = 4
+
+
+def _is_smoking_deal_breaker(profile_a: RoommateProfile, profile_b: RoommateProfile) -> bool:
+    """One user smokes, the other's own habit is strictly non-smoking."""
+    return {profile_a.smoking, profile_b.smoking} == {"smoker", "non_smoker"}
+
+
+def _is_budget_deal_breaker(profile_a: RoommateProfile, profile_b: RoommateProfile) -> bool:
+    """No overlap AND the gap is a severe fraction of typical budget size."""
+    a_min, a_max = profile_a.budget_min, profile_a.budget_max
+    b_min, b_max = profile_b.budget_min, profile_b.budget_max
+
+    overlap_start = max(a_min, b_min)
+    overlap_end = min(a_max, b_max)
+    if overlap_end >= overlap_start:
+        return False  # ranges overlap — not a deal breaker
+
+    gap = overlap_start - overlap_end
+    reference = max((a_min + a_max) / 2, (b_min + b_max) / 2, 1)
+    return _safe_ratio(gap, reference) >= BUDGET_DEAL_BREAKER_GAP_RATIO
+
+
+def _is_cleanliness_deal_breaker(profile_a: RoommateProfile, profile_b: RoommateProfile) -> bool:
+    """Complete opposites, e.g. 1 vs 5."""
+    return abs(profile_a.cleanliness - profile_b.cleanliness) >= CLEANLINESS_DEAL_BREAKER_DIFF
+
+
+def apply_deal_breakers(
+    profile_a: RoommateProfile,
+    profile_b: RoommateProfile,
+    total_score: float,
+) -> tuple:
+    """
+    Runs after the weighted total_score is already computed. Caps it if a
+    hard lifestyle conflict is found. If multiple trigger at once, only the
+    single strongest (lowest) cap is applied — they don't stack.
+
+    Returns (final_score, deal_breaker_triggered, reasons).
+    """
+    triggered_caps = []
+    reasons = []
+
+    if _is_smoking_deal_breaker(profile_a, profile_b):
+        triggered_caps.append(DEAL_BREAKER_CAPS["smoking_conflict"])
+        reasons.append("Smoking conflict")
+
+    if _is_budget_deal_breaker(profile_a, profile_b):
+        triggered_caps.append(DEAL_BREAKER_CAPS["budget_conflict"])
+        reasons.append("Budget conflict")
+
+    if _is_cleanliness_deal_breaker(profile_a, profile_b):
+        triggered_caps.append(DEAL_BREAKER_CAPS["cleanliness_conflict"])
+        reasons.append("Cleanliness conflict")
+
+    if not triggered_caps:
+        return total_score, False, []
+
+    strongest_cap = min(triggered_caps)
+    final_score = min(total_score, strongest_cap)
+    return final_score, True, reasons
+
 
 def _safe_ratio(value: float, max_value: float) -> float:
     if max_value <= 0:
@@ -208,6 +284,8 @@ def calculate_compatibility_score(
             },
             "blocked": True,
             "block_reason": "hard_filter",
+            "deal_breaker": False,
+            "deal_breaker_reasons": [],
         }
 
     breakdown = {
@@ -226,11 +304,17 @@ def calculate_compatibility_score(
     total_score = sum(breakdown.values())
     total_score = max(0.0, min(100.0, total_score))
 
+    total_score, deal_breaker, deal_breaker_reasons = apply_deal_breakers(
+        profile_a, profile_b, total_score
+    )
+
     return {
         "total_score": round(total_score, 2),
         "breakdown": breakdown,
         "blocked": False,
         "block_reason": None,
+        "deal_breaker": deal_breaker,
+        "deal_breaker_reasons": deal_breaker_reasons,
     }
 
 
