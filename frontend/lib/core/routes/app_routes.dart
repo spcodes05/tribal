@@ -12,6 +12,30 @@ import '../../views/profile_completion/social_verification_screen.dart';
 import '../../views/profile_completion/profile_setup_screen.dart';
 import '../../views/profile_completion/finding_tribe_loading_screen.dart';
 import '../../views/home/home_screen.dart';
+import '../../controllers/roommate_quiz_controller.dart';
+import '../../views/roommate/roommate_home_screen.dart';
+import '../../views/roommate/roommate_intro_screen.dart';
+import '../../views/roommate/budget_screen.dart';
+import '../../views/roommate/sleep_schedule_screen.dart';
+import '../../views/roommate/smoking_screen.dart';
+import '../../views/roommate/drinking_screen.dart';
+import '../../views/roommate/cleanliness_screen.dart';
+import '../../views/roommate/noise_level_screen.dart';
+import '../../views/roommate/guests_preference_screen.dart';
+import '../../views/roommate/food_preference_screen.dart';
+import '../../views/roommate/pets_screen.dart';
+import '../../views/roommate/study_habit_screen.dart';
+import '../../views/roommate/interests_screen.dart';
+import '../../views/roommate/gender_preference_screen.dart';
+import '../../views/roommate/room_type_preference_screen.dart';
+import '../../views/roommate/review_screen.dart';
+import '../../views/roommate/finding_roommate_screen.dart';
+import '../../views/events/activity_detail_screen.dart';
+import '../../views/events/create_activity_screen.dart';
+import '../../views/events/notifications_screen.dart';
+import '../../views/events/search_screen.dart';
+import '../../views/events/see_all_screen.dart';
+
 /// Named route constants and GoRouter configuration for TRIBAL.
 ///
 /// Navigation flow:
@@ -49,6 +73,29 @@ class AppRoutes {
   static const String profileSetup = '/profile-setup';
   static const String findingTribe = '/finding-tribe';
   static const String home = '/home';
+  static const String roommateHome = '/roommate';
+  static const String roommateIntro = '/roommate/intro';
+  static const String roommateBudget = '/roommate/budget';
+  static const String roommateSleepSchedule = '/roommate/sleep-schedule';
+  static const String roommateSmoking = '/roommate/smoking';
+  static const String roommateDrinking = '/roommate/drinking';
+  static const String roommateCleanliness = '/roommate/cleanliness';
+  static const String roommateNoiseLevel = '/roommate/noise-level';
+  static const String roommateGuests = '/roommate/guests';
+  static const String roommateFood = '/roommate/food';
+  static const String roommatePets = '/roommate/pets';
+  static const String roommateStudyHabit = '/roommate/study-habit';
+  static const String roommateInterests = '/roommate/interests';
+  static const String roommateGenderPreference = '/roommate/gender-preference';
+  static const String roommateRoomType = '/roommate/room-type';
+  static const String roommateReview = '/roommate/review';
+  static const String roommateFinding = '/roommate/finding';
+  static const String activityDetail = '/activity';
+  static const String createActivity = '/activity/create';
+  static const String notifications = '/notifications';
+  static const String search = '/search';
+  static const String seeAllActivities = '/see-all/activities';
+  static const String seeAllPeople = '/see-all/people';
 
   /// The root GoRouter instance.
   static final GoRouter router = GoRouter(
@@ -78,12 +125,45 @@ class AppRoutes {
         name: 'verifyEmail',
         builder: (BuildContext context, GoRouterState state) =>
             VerifyEmailScreen(
-                initialEmail: state.uri.queryParameters['email']),
+                initialEmail: state.uri.queryParameters['email']
+            ),
       ),
       GoRoute(
         path: home,
         name: 'home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: activityDetail,
+        name: 'activityDetail',
+        builder: (_, state) => ActivityDetailScreen(
+          activityId: state.extra as int,
+        ),
+      ),
+      GoRoute(
+        path: createActivity,
+        name: 'createActivity',
+        builder: (_, __) => const CreateActivityScreen(),
+      ),
+      GoRoute(
+        path: notifications,
+        name: 'notifications',
+        builder: (_, __) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: search,
+        name: 'search',
+        builder: (_, __) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: seeAllActivities,
+        name: 'seeAllActivities',
+        builder: (_, __) => const SeeAllScreen(mode: SeeAllMode.activities),
+      ),
+      GoRoute(
+        path: seeAllPeople,
+        name: 'seeAllPeople',
+        builder: (_, __) => const SeeAllScreen(mode: SeeAllMode.people),
       ),
 
       // -- Profile Completion Flow --------------------------------------
@@ -123,6 +203,34 @@ class AppRoutes {
             name: 'findingTribe',
             builder: (context, state) => const FindingTribeLoadingScreen(),
           ),
+        ],
+      ),
+
+      ShellRoute(
+        builder: (context, state, child) {
+          return ChangeNotifierProvider<RoommateQuizController>(
+            create: (_) => RoommateQuizController(),
+            child: child,
+          );
+        },
+        routes: [
+          GoRoute(path: roommateHome, name: 'roommateHome', builder: (c, s) => const RoommateHomeScreen()),
+          GoRoute(path: roommateIntro, name: 'roommateIntro', builder: (c, s) => const RoommateIntroScreen()),
+          GoRoute(path: roommateBudget, name: 'roommateBudget', builder: (c, s) => const BudgetScreen()),
+          GoRoute(path: roommateSleepSchedule, name: 'roommateSleepSchedule', builder: (c, s) => const SleepScheduleScreen()),
+          GoRoute(path: roommateSmoking, name: 'roommateSmoking', builder: (c, s) => const SmokingScreen()),
+          GoRoute(path: roommateDrinking, name: 'roommateDrinking', builder: (c, s) => const DrinkingScreen()),
+          GoRoute(path: roommateCleanliness, name: 'roommateCleanliness', builder: (c, s) => const CleanlinessScreen()),
+          GoRoute(path: roommateNoiseLevel, name: 'roommateNoiseLevel', builder: (c, s) => const NoiseLevelScreen()),
+          GoRoute(path: roommateGuests, name: 'roommateGuests', builder: (c, s) => const GuestsPreferenceScreen()),
+          GoRoute(path: roommateFood, name: 'roommateFood', builder: (c, s) => const FoodPreferenceScreen()),
+          GoRoute(path: roommatePets, name: 'roommatePets', builder: (c, s) => const PetsScreen()),
+          GoRoute(path: roommateStudyHabit, name: 'roommateStudyHabit', builder: (c, s) => const StudyHabitScreen()),
+          GoRoute(path: roommateInterests, name: 'roommateInterests', builder: (c, s) => const InterestsScreen()),
+          GoRoute(path: roommateGenderPreference, name: 'roommateGenderPreference', builder: (c, s) => const GenderPreferenceScreen()),
+          GoRoute(path: roommateRoomType, name: 'roommateRoomType', builder: (c, s) => const RoomTypePreferenceScreen()),
+          GoRoute(path: roommateReview, name: 'roommateReview', builder: (c, s) => const ReviewScreen()),
+          GoRoute(path: roommateFinding, name: 'roommateFinding', builder: (c, s) => const FindingRoommateScreen()),
         ],
       ),
     ],

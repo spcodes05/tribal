@@ -9,7 +9,7 @@
 class ApiConfig {
   ApiConfig._();
 
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   // ── Users endpoints (apps/users/urls.py) ──────────────────────────────────
   static const String register = '/users/register/';
@@ -19,6 +19,20 @@ class ApiConfig {
   static const String gender = '/users/gender/';
   static const String interests = '/users/interests/';
   static const String me = '/users/me/';
+
+  // ── Events endpoints (apps/events/urls.py) ───────────────────────────────
+  static const String homeFeed = '/events/home/';
+  static const String activities = '/events/activities/';
+  static String activityDetail(int id) => '/events/activities/$id/';
+  static String joinActivity(int id) => '/events/activities/$id/join/';
+  static const String notifications = '/events/notifications/';
+  static const String notificationsRead = '/events/notifications/read/';
+  static const String search = '/events/search/';
+
+  // ── Roommate endpoints ─────────────────────────────────────────────
+  static const String roommateProfile = '/roommate/profile/';
+  static const String roommateFind = '/roommate/find/';
+  static const String roommateMatchesRefresh = '/roommate/matches/refresh/';
 
   // ── Token endpoints (config/urls.py — simplejwt) ──────────────────────────
   static const String tokenRefresh = '/token/refresh/';
