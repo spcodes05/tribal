@@ -149,7 +149,18 @@ def persist_matches_for_user(
     return matches
 
 
-def get_saved_matches_for_user(user, limit: Optional[int] = 20):
+def get_saved_matches_for_user(user, limit: Optional[int] = 20) -> list:
+    """
+    Returns the same List[Dict] shape as find_best_matches(), so
+    RoommateMatchResultSerializer never has to know whether matches came
+    from a fresh computation or the RoommateMatch cache table.
+
+    deal_breaker / deal_breaker_reasons were folded into score_breakdown
+    at write time (see persist_matches_for_user) under the "_deal_breaker"
+    and "_deal_breaker_reasons" keys — pull them back out here and strip
+    them from the plain breakdown dict so ScoreBreakdownSerializer (which
+    has a fixed set of fields) doesn't choke on the extra keys.
+    """
     queryset = (
         RoommateMatch.objects.select_related(
             "matched_user", "matched_user__roommate_profile"
@@ -161,7 +172,30 @@ def get_saved_matches_for_user(user, limit: Optional[int] = 20):
     if limit is not None:
         queryset = queryset[:limit]
 
-    return queryset
+    results = []
+    for match in queryset:
+        matched_profile = getattr(match.matched_user, "roommate_profile", None)
+        if matched_profile is None:
+            # Matched user deactivated/deleted their roommate profile since
+            # this match was cached — skip rather than serialize a None.
+            continue
+
+        stored_breakdown = dict(match.score_breakdown or {})
+        deal_breaker = stored_breakdown.pop("_deal_breaker", False)
+        deal_breaker_reasons = stored_breakdown.pop("_deal_breaker_reasons", [])
+
+        results.append(
+            {
+                "user_id": match.matched_user_id,
+                "profile": matched_profile,
+                "score": match.compatibility_score,
+                "breakdown": stored_breakdown,
+                "deal_breaker": deal_breaker,
+                "deal_breaker_reasons": deal_breaker_reasons,
+            }
+        )
+
+    return results
 
 
 def refresh_matches_if_stale(
