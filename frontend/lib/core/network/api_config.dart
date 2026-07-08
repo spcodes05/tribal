@@ -20,14 +20,7 @@ class ApiConfig {
   static const String interests = '/users/interests/';
   static const String me = '/users/me/';
 
-  // ── Events endpoints (apps/events/urls.py) ───────────────────────────────
-  static const String homeFeed = '/events/home/';
-  static const String activities = '/events/activities/';
-  static String activityDetail(int id) => '/events/activities/$id/';
-  static String joinActivity(int id) => '/events/activities/$id/join/';
-  static const String notifications = '/events/notifications/';
-  static const String notificationsRead = '/events/notifications/read/';
-  static const String search = '/events/search/';
+  // ── Token endpoints (config/urls.py — simplejwt) ──────────────────────────
   static const String tokenRefresh = '/token/refresh/';
 
   static const Duration connectTimeout = Duration(seconds: 10);

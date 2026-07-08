@@ -45,7 +45,7 @@ class TribalBottomNav extends StatelessWidget {
       label: 'Roommate',
       icon: Icons.people_outline_rounded,
       activeIcon: Icons.people_rounded,
-      route: null, // not implemented yet
+      route: AppRoutes.roommateHome,
     ),
   ];
 

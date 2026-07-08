@@ -12,134 +12,116 @@ import '../../views/profile_completion/social_verification_screen.dart';
 import '../../views/profile_completion/profile_setup_screen.dart';
 import '../../views/profile_completion/finding_tribe_loading_screen.dart';
 import '../../views/home/home_screen.dart';
-import '../../views/events/activity_detail_screen.dart';
-import '../../views/events/create_activity_screen.dart';
-import '../../views/events/notifications_screen.dart';
-import '../../views/events/search_screen.dart';
-import '../../views/events/see_all_screen.dart';
-
+/// Named route constants and GoRouter configuration for TRIBAL.
+///
+/// Navigation flow:
+///   /onboarding -> /login <-> /signup
+///                              | (after account creation)
+///                         /phone-verification
+///                              |
+///                         /gender-selection
+///                              |
+///                         /social-verification
+///                              |
+///                         /profile-setup
+///                              |
+///                         /finding-tribe
+///
+/// The four profile-completion screens (phone verification through profile
+/// setup) plus the final loading screen share a single
+/// [ProfileSetupController] instance so data persists across steps. It's
+/// provided once via a [ShellRoute] wrapper around the whole sub-flow and
+/// disposed automatically when the user leaves it.
 class AppRoutes {
   AppRoutes._();
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // Route name constants
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String signup = '/signup';
   static const String verifyEmail = '/verify-email';
 
-  // ── Profile completion ────────────────────────────────────────────────────
+
+  // Profile completion flow
   static const String phoneVerification = '/phone-verification';
   static const String genderSelection = '/gender-selection';
   static const String socialVerification = '/social-verification';
   static const String profileSetup = '/profile-setup';
   static const String findingTribe = '/finding-tribe';
-
-  // ── Main app ──────────────────────────────────────────────────────────────
   static const String home = '/home';
-  static const String activityDetail = '/activity';
-  static const String createActivity = '/activity/create';
-  static const String notifications = '/notifications';
-  static const String search = '/search';
-  static const String seeAllActivities = '/see-all/activities';
-  static const String seeAllPeople = '/see-all/people';
 
+  /// The root GoRouter instance.
   static final GoRouter router = GoRouter(
     initialLocation: onboarding,
     debugLogDiagnostics: false,
     routes: [
-      // ── Auth ──────────────────────────────────────────────────────────────
       GoRoute(
         path: onboarding,
         name: 'onboarding',
-        builder: (_, __) => const OnboardingScreen(),
+        builder: (BuildContext context, GoRouterState state) =>
+        const OnboardingScreen(),
       ),
       GoRoute(
         path: login,
         name: 'login',
-        builder: (_, __) => const LoginScreen(),
+        builder: (BuildContext context, GoRouterState state) =>
+        const LoginScreen(),
       ),
       GoRoute(
         path: signup,
         name: 'signup',
-        builder: (_, __) => const SignupScreen(),
+        builder: (BuildContext context, GoRouterState state) =>
+        const SignupScreen(),
       ),
       GoRoute(
         path: verifyEmail,
         name: 'verifyEmail',
-        builder: (_, state) => VerifyEmailScreen(
-            initialEmail: state.uri.queryParameters['email']),
+        builder: (BuildContext context, GoRouterState state) =>
+            VerifyEmailScreen(
+                initialEmail: state.uri.queryParameters['email']),
       ),
-
-      // ── Main app ──────────────────────────────────────────────────────────
       GoRoute(
         path: home,
         name: 'home',
-        builder: (_, __) => const HomeScreen(),
-      ),
-      GoRoute(
-        path: activityDetail,
-        name: 'activityDetail',
-        builder: (_, state) => ActivityDetailScreen(
-          activityId: state.extra as int,
-        ),
-      ),
-      GoRoute(
-        path: createActivity,
-        name: 'createActivity',
-        builder: (_, __) => const CreateActivityScreen(),
-      ),
-      GoRoute(
-        path: notifications,
-        name: 'notifications',
-        builder: (_, __) => const NotificationsScreen(),
-      ),
-      GoRoute(
-        path: search,
-        name: 'search',
-        builder: (_, __) => const SearchScreen(),
-      ),
-      GoRoute(
-        path: seeAllActivities,
-        name: 'seeAllActivities',
-        builder: (_, __) => const SeeAllScreen(mode: SeeAllMode.activities),
-      ),
-      GoRoute(
-        path: seeAllPeople,
-        name: 'seeAllPeople',
-        builder: (_, __) => const SeeAllScreen(mode: SeeAllMode.people),
+        builder: (context, state) => const HomeScreen(),
       ),
 
-      // ── Profile completion flow ────────────────────────────────────────────
+      // -- Profile Completion Flow --------------------------------------
+      // Wrapped in a single ChangeNotifierProvider so ProfileSetupController
+      // state (phone, gender, socials, profile) persists across all 5 routes
+      // below, then is cleanly disposed when the user exits the flow.
       ShellRoute(
-        builder: (context, state, child) => ChangeNotifierProvider<ProfileSetupController>(
-          create: (_) => ProfileSetupController(),
-          child: child,
-        ),
+        builder: (context, state, child) {
+          return ChangeNotifierProvider<ProfileSetupController>(
+            create: (_) => ProfileSetupController(),
+            child: child,
+          );
+        },
         routes: [
           GoRoute(
             path: phoneVerification,
             name: 'phoneVerification',
-            builder: (_, __) => const PhoneVerificationScreen(),
+            builder: (context, state) => const PhoneVerificationScreen(),
           ),
           GoRoute(
             path: genderSelection,
             name: 'genderSelection',
-            builder: (_, __) => const GenderSelectionScreen(),
+            builder: (context, state) => const GenderSelectionScreen(),
           ),
           GoRoute(
             path: socialVerification,
             name: 'socialVerification',
-            builder: (_, __) => const SocialVerificationScreen(),
+            builder: (context, state) => const SocialVerificationScreen(),
           ),
           GoRoute(
             path: profileSetup,
             name: 'profileSetup',
-            builder: (_, __) => const ProfileSetupScreen(),
+            builder: (context, state) => const ProfileSetupScreen(),
           ),
           GoRoute(
             path: findingTribe,
             name: 'findingTribe',
-            builder: (_, __) => const FindingTribeLoadingScreen(),
+            builder: (context, state) => const FindingTribeLoadingScreen(),
           ),
         ],
       ),
