@@ -203,12 +203,14 @@ class PersonMatchModel {
   final String fullName;
   final String? gender;
   final List<String> interests;
+  final int? matchPercent;
 
   const PersonMatchModel({
     required this.id,
     required this.fullName,
     this.gender,
     required this.interests,
+    this.matchPercent,
   });
 
   factory PersonMatchModel.fromJson(Map<String, dynamic> json) =>
@@ -220,5 +222,6 @@ class PersonMatchModel {
                 ?.map((e) => e.toString())
                 .toList() ??
             [],
+        matchPercent: json['match_percent'] as int?,
       );
 }

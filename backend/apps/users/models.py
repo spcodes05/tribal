@@ -132,6 +132,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
 
+    # ── Location (for proximity scoring) ─────
+    # Stored as decimal degrees. null=True because existing users
+    # won't have coordinates until they update their profile.
+    latitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
+    longitude = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True
+    )
+
     objects = CustomUserManager()
 
     USERNAME_FIELD = "email"
@@ -172,29 +182,22 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         self.save(update_fields=["is_onboarding_complete"])
 
     def check_onboarding_complete(self):
-        """
-        Recalculates and saves is_onboarding_complete.
-        Called after gender or interests are saved.
-
-        Criteria:
-          - Email verified
-          - Gender selected
-          - At least one interest selected
-        """
         complete = (
             self.is_email_verified
             and bool(self.gender)
             and self.interests.exists()
         )
 
-        def can_access_app(self):
-         return (
-        self.is_email_verified and
-        self.gender and
-        self.interests.exists()
-          )
-        
         if self.is_onboarding_complete != complete:
             self.is_onboarding_complete = complete
             self.save(update_fields=["is_onboarding_complete"])
+
         return complete
+
+
+    def can_access_app(self):
+        return (
+            self.is_email_verified
+            and self.gender
+            and self.interests.exists()
+        )

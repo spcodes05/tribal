@@ -6,6 +6,7 @@ import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
+import '../../services/location_service.dart';
 import '../../widgets/tribal_bottom_nav.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,6 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Request GPS permission and save coordinates so the recommendation
+      // engine can compute LocationScore for activities and people.
+      LocationService.instance.requestAndSave();
       context.read<HomeController>().loadHomeFeed();
     });
   }
@@ -333,8 +337,11 @@ class _PersonCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
-                  child: Text('Vibe ✨',
-                      style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+                  child: Text(
+                    person.matchPercent != null
+                        ? '${person.matchPercent}% match'
+                        : 'Vibe ✨',
+                    style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
                 ),
               ),
             ],

@@ -277,10 +277,13 @@ class _PersonGridCard extends StatelessWidget {
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text('Vibe ✨',
-                      style: GoogleFonts.poppins(
-                          fontSize: 9, fontWeight: FontWeight.w600,
-                          color: Colors.white)),
+                  child: Text(
+                    person.matchPercent != null
+                        ? '${person.matchPercent}% match'
+                        : 'Vibe ✨',
+                    style: GoogleFonts.poppins(
+                        fontSize: 9, fontWeight: FontWeight.w600,
+                        color: Colors.white)),
                 ),
               ),
             ],

@@ -9,7 +9,7 @@
 class ApiConfig {
   ApiConfig._();
 
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  static const String baseUrl = 'http://127.0.0.1:8000/api';
 
   // ── Users endpoints (apps/users/urls.py) ──────────────────────────────────
   static const String register = '/users/register/';
@@ -19,6 +19,9 @@ class ApiConfig {
   static const String gender = '/users/gender/';
   static const String interests = '/users/interests/';
   static const String me = '/users/me/';
+
+  static const String userLocation = '/users/location/';
+  static const String interestsList = '/users/interests/';
 
   // ── Events endpoints (apps/events/urls.py) ───────────────────────────────
   static const String homeFeed = '/events/home/';

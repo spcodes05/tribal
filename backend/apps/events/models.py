@@ -5,49 +5,96 @@ from django.utils import timezone
 
 class Activity(models.Model):
     """
-    Represents an activity/event created by a TRIBAL user.
+    Represents an activity created by a TRIBAL user.
 
-    Tags are stored as simple boolean fields rather than a ManyToMany
-    because there are exactly 3 fixed tags from the UI design and they're
-    unlikely to grow — a ManyToMany table would be over-engineering here.
+    Recommendation engine uses:
+    - Activity tags (Interest)
+    - Activity location (lat/lng)
+    - Joined members
+    - Popularity
+
+    UI filters still use:
+    - Women only
+    - Accessible
+    - Free
     """
 
-    # ── Core fields ──────────────────────────────────────────────────────────
+    # ───────────────────────────────────────────────────────────────
+    # Basic information
+    # ───────────────────────────────────────────────────────────────
+
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
 
-    # Creator / host of the activity
     host = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='hosted_activities',
+        related_name="hosted_activities",
     )
 
-    # ── Location ─────────────────────────────────────────────────────────────
-    location = models.CharField(max_length=255)          # e.g. "Shivapuri, Nepal"
-    meeting_point = models.CharField(max_length=255, blank=True)  # e.g. "Mulhan Pokhari Gate"
+    # ───────────────────────────────────────────────────────────────
+    # Location
+    # ───────────────────────────────────────────────────────────────
 
-    # ── Schedule ──────────────────────────────────────────────────────────────
+    location = models.CharField(max_length=255)
+    meeting_point = models.CharField(max_length=255, blank=True)
+
+    # Used by recommendation engine
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    # ───────────────────────────────────────────────────────────────
+    # Date & Time
+    # ───────────────────────────────────────────────────────────────
+
     date = models.DateField()
     time = models.TimeField()
 
-    # ── Tags (from the UI: Women-only, Accessible, Free) ─────────────────────
+    # ───────────────────────────────────────────────────────────────
+    # Activity Category
+    # ───────────────────────────────────────────────────────────────
+
+    tags = models.ManyToManyField(
+        "users.Interest",
+        related_name="activities",
+        blank=True,
+    )
+
+    # ───────────────────────────────────────────────────────────────
+    # UI Filters
+    # ───────────────────────────────────────────────────────────────
+
     is_women_only = models.BooleanField(default=False)
     is_accessible = models.BooleanField(default=False)
     is_free = models.BooleanField(default=True)
 
-    # ── Capacity ─────────────────────────────────────────────────────────────
+    # ───────────────────────────────────────────────────────────────
+    # Capacity
+    # ───────────────────────────────────────────────────────────────
+
     max_members = models.PositiveIntegerField(default=20)
 
-    # ── Cover image ───────────────────────────────────────────────────────────
-    # Stored as a URL string (e.g. Supabase storage URL) — no FileField to
-    # avoid serving media files from the Django process itself.
+    # ───────────────────────────────────────────────────────────────
+    # Image
+    # ───────────────────────────────────────────────────────────────
+
     image_url = models.URLField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['date', 'time']
+        ordering = ["date", "time"]
 
     def __str__(self):
         return f"{self.title} ({self.date})"
