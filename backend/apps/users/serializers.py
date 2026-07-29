@@ -130,6 +130,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "full_name",
             "email",
             "is_email_verified",
+            "latitude",
+            "longitude",
             "gender",
             "interests",
             "is_onboarding_complete",

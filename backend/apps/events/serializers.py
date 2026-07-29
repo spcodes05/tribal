@@ -28,6 +28,8 @@ class MemberSerializer(serializers.ModelSerializer):
 
 class ActivityCardSerializer(serializers.ModelSerializer):
     host_name = serializers.CharField(source='host.full_name', read_only=True)
+    tags = serializers.SerializerMethodField()
+    recommendation_score = serializers.SerializerMethodField()
     member_count = serializers.IntegerField(read_only=True)
     is_full = serializers.BooleanField(read_only=True)
 
@@ -48,15 +50,44 @@ class ActivityCardSerializer(serializers.ModelSerializer):
         match_percents = self.context.get('match_percents', {})
         return match_percents.get(obj.id, None)
 
+    def get_tags(self, obj):
+        return list(obj.tags.values_list("name", flat=True))
+
+
+    def get_recommendation_score(self, obj):
+        scores = self.context.get("recommendation_scores", {})
+        return round(scores.get(obj.id, 0), 3)
+
     class Meta:
         model = Activity
         fields = [
-            'id', 'title', 'image_url', 'location',
-            'date', 'time',
-            'is_women_only', 'is_accessible', 'is_free',
-            'member_count', 'max_members', 'is_full',
-            'host_name', 'distance_km', 'match_percent',
-        ]
+         "id",
+         "title",
+         "image_url",
+
+         "location",
+         "latitude",
+        "longitude",
+
+         "date",
+         "time",
+
+         "tags",
+
+         "is_women_only",
+         "is_accessible",
+         "is_free",
+
+         "member_count",
+         "max_members",
+         "is_full",
+
+         "host_name",
+
+         "distance_km",
+         "match_percent",
+         "recommendation_score",
+    ]
 
 
 # ── Activity detail (full, for activity detail screen) ────────────────────────
@@ -67,6 +98,10 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
     is_full = serializers.BooleanField(read_only=True)
     recent_members = serializers.SerializerMethodField()
     has_joined = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
+
+    def get_tags(self, obj):
+        return list(obj.tags.values_list("name", flat=True))
 
     def get_recent_members(self, obj):
         # Return up to 4 members for the stacked avatar display
@@ -82,33 +117,71 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
         fields = [
-            'id', 'title', 'description', 'image_url',
-            'location', 'meeting_point',
-            'date', 'time',
-            'is_women_only', 'is_accessible', 'is_free',
-            'member_count', 'max_members', 'is_full',
-            'host', 'recent_members', 'has_joined',
-            'created_at',
+        "id",
+        "title",
+        "description",
+        "image_url",
+
+        "location",
+        "meeting_point",
+
+        "latitude",
+        "longitude",
+
+        "date",
+        "time",
+
+        "tags",
+
+        "is_women_only",
+        "is_accessible",
+        "is_free",
+
+        "member_count",
+        "max_members",
+        "is_full",
+
+        "host",
+        "recent_members",
+        "has_joined",
+
+        "created_at",
         ]
 
 
 # ── Create activity ───────────────────────────────────────────────────────────
 
 class CreateActivitySerializer(serializers.ModelSerializer):
+    # Accept a list of Interest IDs to set as activity tags.
+    # Write-only — not returned in the response (ActivityDetailSerializer
+    # returns the full tags list).
+    tag_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        default=list,
+    )
+
     class Meta:
         model = Activity
         fields = [
             'title', 'description',
             'location', 'meeting_point',
+            'latitude', 'longitude',
             'date', 'time',
             'is_women_only', 'is_accessible', 'is_free',
             'max_members', 'image_url',
+            'tag_ids',
         ]
 
     def create(self, validated_data):
-        # Host is always the authenticated user — never let the client set it.
+        tag_ids = validated_data.pop('tag_ids', [])
         validated_data['host'] = self.context['request'].user
-        return super().create(validated_data)
+        activity = super().create(validated_data)
+        if tag_ids:
+            from apps.users.models import Interest
+            activity.tags.set(Interest.objects.filter(id__in=tag_ids))
+        return activity
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
@@ -131,10 +204,14 @@ class NotificationSerializer(serializers.ModelSerializer):
 class PeopleMatchSerializer(serializers.ModelSerializer):
     """Compact user card for 'People You Might Vibe With'."""
     interests = serializers.SerializerMethodField()
+    match_percent = serializers.SerializerMethodField()
 
     def get_interests(self, obj):
         return list(obj.interests.values_list('name', flat=True))
 
+    def get_match_percent(self, obj):
+        return self.context.get('match_percents', {}).get(obj.id)
+
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'gender', 'interests']
+        fields = ['id', 'full_name', 'gender', 'interests', 'match_percent']

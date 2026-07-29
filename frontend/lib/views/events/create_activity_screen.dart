@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
+import '../../services/events_service.dart';
 import '../../widgets/custom_button.dart';
 
 class CreateActivityScreen extends StatefulWidget {
@@ -73,7 +75,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
   String get _formattedDate {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[_selectedDate.month - 1]} ${_selectedDate.day}, ${_selectedDate.year}';
   }
 

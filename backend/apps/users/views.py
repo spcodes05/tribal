@@ -318,7 +318,8 @@ class GenderView(APIView):
 
 class InterestsView(APIView):
     """
-    POST /api/users/interests/
+    GET  /api/users/interests/   — returns all predefined interests with IDs
+    POST /api/users/interests/   — saves user's selected interests
     Body: { "interests": ["Hiking", "Music", "Gaming"] }
 
     Replaces the user's current interests with the submitted list.
@@ -327,6 +328,12 @@ class InterestsView(APIView):
     Requires authentication and verified email.
     """
     permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return all available interests as [{id, name}] for picker UIs."""
+        from apps.users.models import Interest
+        interests = Interest.objects.all().order_by('name')
+        return Response([{'id': i.id, 'name': i.name} for i in interests])
 
     def post(self, request):
         if not request.user.is_email_verified:
@@ -439,3 +446,54 @@ def set_interests(request):
     user.save()
 
     return Response({"message": "interests updated"})
+
+class LocationView(APIView):
+    """
+    POST /api/users/location/
+
+    Saves the authenticated user's latitude and longitude.
+    Called from the Flutter app whenever the user grants location permission
+    or manually sets their area.
+
+    Request body:
+        { "latitude": 27.7172, "longitude": 85.3240 }
+
+    Response:
+        { "message": "Location updated.", "latitude": 27.7172, "longitude": 85.3240 }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        lat = request.data.get('latitude')
+        lon = request.data.get('longitude')
+
+        if lat is None or lon is None:
+            return Response(
+                {'detail': 'Both latitude and longitude are required.'},
+                status=400,
+            )
+
+        try:
+            lat = float(lat)
+            lon = float(lon)
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'latitude and longitude must be valid numbers.'},
+                status=400,
+            )
+
+        if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+            return Response(
+                {'detail': 'Invalid coordinates.'},
+                status=400,
+            )
+
+        request.user.latitude = lat
+        request.user.longitude = lon
+        request.user.save(update_fields=['latitude', 'longitude'])
+
+        return Response({
+            'message': 'Location updated.',
+            'latitude': lat,
+            'longitude': lon,
+        })
