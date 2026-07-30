@@ -4,7 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/roommate_quiz_controller.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/network/api_client.dart';
 import '../../core/routes/app_routes.dart';
+import '../../models/chat_model.dart';
+import '../../models/roommate_match_model.dart';
+import '../../services/chat_service.dart';
 import '../../widgets/roommate_match_card.dart';
 import '../../widgets/tribal_bottom_nav.dart';
 
@@ -18,6 +22,11 @@ class RoommateHomeScreen extends StatefulWidget {
 }
 
 class _RoommateHomeScreenState extends State<RoommateHomeScreen> {
+  // Tracks which match's "Start Chat" is currently in flight so a double
+  // tap can't fire two POST /api/chat/start/ calls at once, and so the
+  // tapped card can show a small loading state instead of doing nothing.
+  int? _startingChatForUserId;
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +41,39 @@ class _RoommateHomeScreenState extends State<RoommateHomeScreen> {
         ctrl.fetchMatches();
       }
     });
+  }
+
+  /// "Start Chat" — every roommate card wires here. Calls the existing
+  /// `POST /api/chat/start/` (idempotent: returns the existing chat if one
+  /// already exists between the two users, otherwise creates it) and then
+  /// navigates straight into the conversation. The user never manually
+  /// creates a chat.
+  Future<void> _startChat(RoommateMatchResult match) async {
+    if (_startingChatForUserId != null) return;
+    setState(() => _startingChatForUserId = match.userId);
+
+    try {
+      final chat = await ChatService.instance.startChat(match.userId);
+      if (!mounted) return;
+      context.push(
+        AppRoutes.chatConversation.replaceFirst(':id', chat.id.toString()),
+        extra: ChatConversationArgs(
+          chatId: chat.id,
+          otherUserFullName: chat.otherUserFullName,
+          otherUserProfileImage: chat.otherUserProfileImage,
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not start the chat. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _startingChatForUserId = null);
+    }
   }
 
   @override
@@ -143,7 +185,7 @@ class _RoommateHomeScreenState extends State<RoommateHomeScreen> {
             tags: match.displayTags,
             compatibility: match.score,
             dealBreaker: match.dealBreaker,
-            onChatTap: () {}, // TODO: wire to chat once a chat-with-user route exists
+            onChatTap: () => _startChat(match),
           ),
           const SizedBox(height: 16),
         ],

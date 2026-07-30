@@ -37,6 +37,14 @@ class ApiConfig {
   static const String roommateFind = '/roommate/find/';
   static const String roommateMatchesRefresh = '/roommate/matches/refresh/';
 
+  // ── Chat endpoints (apps/chat/urls.py) ─────────────────────────────────
+  static const String chatList = '/chat/';
+  static String chatMessages(int chatId) => '/chat/$chatId/';
+  static const String chatStart = '/chat/start/';
+  static String chatSend(int chatId) => '/chat/$chatId/send/';
+  static String messageRead(int messageId) => '/chat/message/$messageId/read/';
+  static String messageDelete(int messageId) => '/chat/message/$messageId/';
+
   // ── Token endpoints (config/urls.py — simplejwt) ──────────────────────────
   static const String tokenRefresh = '/token/refresh/';
 

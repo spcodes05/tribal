@@ -35,6 +35,9 @@ import '../../views/events/create_activity_screen.dart';
 import '../../views/events/notifications_screen.dart';
 import '../../views/events/search_screen.dart';
 import '../../views/events/see_all_screen.dart';
+import '../../views/chat/chat_list_screen.dart';
+import '../../views/chat/chat_screen.dart';
+import '../../models/chat_model.dart';
 
 /// Named route constants and GoRouter configuration for TRIBAL.
 ///
@@ -96,6 +99,8 @@ class AppRoutes {
   static const String search = '/search';
   static const String seeAllActivities = '/see-all/activities';
   static const String seeAllPeople = '/see-all/people';
+  static const String chatList = '/chat';
+  static const String chatConversation = '/chat/:id';
 
   /// The root GoRouter instance.
   static final GoRouter router = GoRouter(
@@ -164,6 +169,26 @@ class AppRoutes {
         path: seeAllPeople,
         name: 'seeAllPeople',
         builder: (_, __) => const SeeAllScreen(mode: SeeAllMode.people),
+      ),
+      GoRoute(
+        path: chatList,
+        name: 'chatList',
+        builder: (_, __) => const ChatListScreen(),
+      ),
+      GoRoute(
+        path: chatConversation,
+        name: 'chatConversation',
+        builder: (_, state) {
+          final args = state.extra as ChatConversationArgs?;
+          final idFromPath = int.tryParse(state.pathParameters['id'] ?? '');
+          return ChatScreen(
+            args: args ??
+                ChatConversationArgs(
+                  chatId: idFromPath ?? 0,
+                  otherUserFullName: 'Conversation',
+                ),
+          );
+        },
       ),
 
       // -- Profile Completion Flow --------------------------------------
