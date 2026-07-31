@@ -38,6 +38,8 @@ import '../../views/events/see_all_screen.dart';
 import '../../views/chat/chat_list_screen.dart';
 import '../../views/chat/chat_screen.dart';
 import '../../models/chat_model.dart';
+import '../../views/safety/safety_screen.dart';
+
 
 /// Named route constants and GoRouter configuration for TRIBAL.
 ///
@@ -137,6 +139,15 @@ class AppRoutes {
         path: home,
         name: 'home',
         builder: (context, state) => const HomeScreen(),
+      ),
+      /*GoRoute(
+        path: '/safety',
+        name: 'safety',
+        builder: (context, state) => const SafetyScreen(),
+      ),*/
+      GoRoute(
+        path: '/safety',
+        builder: (context, state) => const SafetyScreen(),
       ),
       GoRoute(
         path: activityDetail,

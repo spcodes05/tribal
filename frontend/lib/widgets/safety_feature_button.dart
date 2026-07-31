@@ -17,7 +17,7 @@ class SafetyFeatureButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: () {
             // TODO: Confirm route path once Safety Feature view is finalized.
-            //context.push('/safety-feature');
+            context.push('/safety');
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
