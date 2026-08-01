@@ -10,4 +10,5 @@ urlpatterns = [
     path("api/chat/", include("apps.chat.urls")),
     path("api/roommate/", include("apps.roommate.urls")),
     path("api/events/", include("apps.events.urls")),
+    path("api/safety/", include("apps.safety.urls")),
 ]
