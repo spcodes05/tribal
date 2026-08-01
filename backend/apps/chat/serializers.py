@@ -58,6 +58,7 @@ class ChatPreviewSerializer(serializers.ModelSerializer):
     user, found in `self.context["request"].user`.
     """
 
+    other_user_id = serializers.SerializerMethodField()
     other_user_full_name = serializers.SerializerMethodField()
     other_user_profile_image = serializers.SerializerMethodField()
     latest_message = serializers.SerializerMethodField()
@@ -67,6 +68,7 @@ class ChatPreviewSerializer(serializers.ModelSerializer):
         model = Chat
         fields = [
             "id",
+            "other_user_id",
             "other_user_full_name",
             "other_user_profile_image",
             "latest_message",
@@ -74,6 +76,10 @@ class ChatPreviewSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_other_user_id(self, chat: Chat):
+        other_user = self._get_other_user(chat)
+        return other_user.id if other_user else None    
 
     def _get_request_user(self):
         request = self.context.get("request")

@@ -142,6 +142,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         max_digits=9, decimal_places=6, null=True, blank=True
     )
 
+    # ── Public profile fields (added for "Your Tribe Status" / "Other User Profile") ──
+    # All optional/blank so existing users and existing endpoints are unaffected.
+    username = models.CharField(max_length=30, unique=True, null=True, blank=True)
+    profile_image = models.URLField(blank=True, default="")
+    bio = models.CharField(max_length=280, blank=True, default="")
+    age = models.PositiveSmallIntegerField(null=True, blank=True)
+    occupation = models.CharField(max_length=150, blank=True, default="")
+    university = models.CharField(max_length=150, blank=True, default="")
+    location = models.CharField(max_length=150, blank=True, default="")  # free-text display location (distinct from lat/lng used by the recommendation engine)
+
     objects = CustomUserManager()
 
     USERNAME_FIELD = "email"
@@ -201,3 +211,47 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             and self.gender
             and self.interests.exists()
         )
+
+# ─────────────────────────────────────────────
+# SAFETY: BLOCK / REPORT
+# ─────────────────────────────────────────────
+
+class UserBlock(models.Model):
+    """One user blocking another. Blocking is one-directional."""
+    blocker = models.ForeignKey(
+        "users.CustomUser", on_delete=models.CASCADE, related_name="blocking",
+    )
+    blocked = models.ForeignKey(
+        "users.CustomUser", on_delete=models.CASCADE, related_name="blocked_by",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("blocker", "blocked")
+
+    def __str__(self):
+        return f"{self.blocker_id} blocked {self.blocked_id}"
+
+
+class UserReport(models.Model):
+    REASON_CHOICES = [
+        ("harassment", "Harassment or bullying"),
+        ("spam", "Spam"),
+        ("fake_profile", "Fake profile"),
+        ("inappropriate_content", "Inappropriate content"),
+        ("safety_concern", "Safety concern"),
+        ("other", "Other"),
+    ]
+
+    reporter = models.ForeignKey(
+        "users.CustomUser", on_delete=models.CASCADE, related_name="reports_made",
+    )
+    reported_user = models.ForeignKey(
+        "users.CustomUser", on_delete=models.CASCADE, related_name="reports_received",
+    )
+    reason = models.CharField(max_length=30, choices=REASON_CHOICES)
+    details = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Report({self.reporter_id} -> {self.reported_user_id}: {self.reason})"

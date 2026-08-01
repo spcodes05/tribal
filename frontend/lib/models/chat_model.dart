@@ -113,6 +113,7 @@ class LatestMessagePreview {
 /// other participant, so there is intentionally no `isOnline` field here.
 class ChatPreviewModel {
   final int id;
+  final int? otherUserId;
   final String otherUserFullName;
   final String? otherUserProfileImage;
   final LatestMessagePreview? latestMessage;
@@ -121,6 +122,7 @@ class ChatPreviewModel {
 
   const ChatPreviewModel({
     required this.id,
+    this.otherUserId,
     required this.otherUserFullName,
     this.otherUserProfileImage,
     this.latestMessage,
@@ -132,6 +134,7 @@ class ChatPreviewModel {
     final rawName = json['other_user_full_name'] as String?;
     return ChatPreviewModel(
       id: json['id'] as int,
+      otherUserId: json['other_user_id'] as int?,
       otherUserFullName:
       (rawName != null && rawName.trim().isNotEmpty) ? rawName : 'Tribal User',
       otherUserProfileImage: json['other_user_profile_image'] as String?,
@@ -185,11 +188,13 @@ class ChatPreviewModel {
 /// only, no participant info — see ChatMessageListView).
 class ChatConversationArgs {
   final int chatId;
+  final int? otherUserId;
   final String otherUserFullName;
   final String? otherUserProfileImage;
 
   const ChatConversationArgs({
     required this.chatId,
+    this.otherUserId,
     required this.otherUserFullName,
     this.otherUserProfileImage,
   });
