@@ -6,6 +6,7 @@ import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
+import '../../models/profile_model.dart';
 import '../../widgets/tribal_bottom_nav.dart';
 
 /// Shared "See All" screen — shows either all activities or all people
@@ -94,7 +95,7 @@ class _ActivityListCard extends StatelessWidget {
             // Cover
             activity.imageUrl != null && activity.imageUrl!.isNotEmpty
                 ? Image.network(activity.imageUrl!, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _GradientBg())
+                errorBuilder: (_, __, ___) => _GradientBg())
                 : _GradientBg(),
 
             // Gradient
@@ -246,70 +247,76 @@ class _PersonGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04),
-              blurRadius: 8, offset: const Offset(0, 2)),
-        ],
+    return GestureDetector(
+      onTap: () => context.push(
+        AppRoutes.otherUserProfilePath(person.id),
+        extra: OtherProfileNavArgs(fallbackMatchPercent: person.matchPercent),
       ),
-      child: Column(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              const CircleAvatar(
-                radius: 30,
-                backgroundColor: AppColors.surface,
-                child: Icon(Icons.person_outline_rounded,
-                    color: AppColors.textSecondary, size: 30),
-              ),
-              Positioned(
-                bottom: -10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    person.matchPercent != null
-                        ? '${person.matchPercent}% match'
-                        : 'Vibe ✨',
-                    style: GoogleFonts.poppins(
-                        fontSize: 9, fontWeight: FontWeight.w600,
-                        color: Colors.white)),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.04),
+                blurRadius: 8, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                const CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppColors.surface,
+                  child: Icon(Icons.person_outline_rounded,
+                      color: AppColors.textSecondary, size: 30),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(person.fullName,
-              style: GoogleFonts.poppins(
-                  fontSize: 13, fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 4, runSpacing: 4, alignment: WrapAlignment.center,
-            children: person.interests.take(2).map((i) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(i,
-                  style: GoogleFonts.poppins(
-                      fontSize: 10, fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary)),
-            )).toList(),
-          ),
-        ],
+                Positioned(
+                  bottom: -10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                        person.matchPercent != null
+                            ? '${person.matchPercent}% match'
+                            : 'Vibe ✨',
+                        style: GoogleFonts.poppins(
+                            fontSize: 9, fontWeight: FontWeight.w600,
+                            color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(person.fullName,
+                style: GoogleFonts.poppins(
+                    fontSize: 13, fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 4, runSpacing: 4, alignment: WrapAlignment.center,
+              children: person.interests.take(2).map((i) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(i,
+                    style: GoogleFonts.poppins(
+                        fontSize: 10, fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary)),
+              )).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }

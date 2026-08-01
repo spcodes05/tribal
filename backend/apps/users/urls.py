@@ -9,6 +9,11 @@ from .views import (
     MeView,
     LocationView,
     UserSearchView,
+    TribeStatusView,
+    UpdateProfileView,
+    PublicProfileView,
+    BlockUserView,
+    ReportUserView,
 )
 from .views import set_gender, set_interests
 
@@ -24,4 +29,11 @@ urlpatterns = [
     path("set-gender/", set_gender),
     path("set-interests/", set_interests),
     path("search/", UserSearchView.as_view(), name="user-search"),
+
+    # ── Tribe Status / Other User Profile ──────────────────────────────────
+    path("me/tribe-status/", TribeStatusView.as_view(), name="user-tribe-status"),
+    path("me/update/", UpdateProfileView.as_view(), name="user-update-profile"),
+    path("<int:user_id>/profile/", PublicProfileView.as_view(), name="user-public-profile"),
+    path("<int:user_id>/block/", BlockUserView.as_view(), name="user-block"),
+    path("<int:user_id>/report/", ReportUserView.as_view(), name="user-report"),
 ]

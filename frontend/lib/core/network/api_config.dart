@@ -9,7 +9,7 @@
 class ApiConfig {
   ApiConfig._();
 
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   // ── Users endpoints (apps/users/urls.py) ──────────────────────────────────
   static const String register = '/users/register/';
@@ -22,6 +22,12 @@ class ApiConfig {
 
   static const String userLocation = '/users/location/';
   static const String interestsList = '/users/interests/';
+
+  static const String meTribeStatus = '/users/me/tribe-status/';
+  static const String meUpdateProfile = '/users/me/update/';
+  static String publicProfile(int userId) => '/users/$userId/profile/';
+  static String blockUser(int userId) => '/users/$userId/block/';
+  static String reportUser(int userId) => '/users/$userId/report/';
 
   // ── Events endpoints (apps/events/urls.py) ───────────────────────────────
   static const String homeFeed = '/events/home/';
@@ -44,6 +50,17 @@ class ApiConfig {
   static String chatSend(int chatId) => '/chat/$chatId/send/';
   static String messageRead(int messageId) => '/chat/message/$messageId/read/';
   static String messageDelete(int messageId) => '/chat/message/$messageId/';
+
+  // ── Safety endpoints (apps/safety/urls.py) ─────────────────────────────
+  static const String safetySettings = '/safety/settings/';
+  static const String trustedContacts = '/safety/trusted-contacts/';
+  static String trustedContactDelete(int pk) => '/safety/trusted-contacts/$pk/';
+  static const String safetyLocationUpdate = '/safety/location/';
+  static String trustedUserLocation(int userId) => '/safety/location/$userId/';
+  static const String sosActivate = '/safety/sos/activate/';
+  static const String sosEnd = '/safety/sos/end/';
+  // ── User search endpoint (apps/users/urls.py) ───────────────────────────
+  static const String userSearch = '/users/search/';
 
   // ── Token endpoints (config/urls.py — simplejwt) ──────────────────────────
   static const String tokenRefresh = '/token/refresh/';

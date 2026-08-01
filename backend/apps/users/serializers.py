@@ -1,7 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Interest, GENDER_CHOICES, PREDEFINED_INTERESTS
-from .models import CustomUser
+from .models import (
+    Interest,
+    GENDER_CHOICES,
+    PREDEFINED_INTERESTS,
+    CustomUser,
+    UserBlock,
+    UserReport,
+)
 
 User = get_user_model()
 
@@ -136,7 +142,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "gender",
             "interests",
             "is_onboarding_complete",
-        ]
+]
 
 class UserSearchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -146,3 +152,73 @@ class UserSearchSerializer(serializers.ModelSerializer):
             "full_name",
             "email",
         ]
+
+
+# ─────────────────────────────────────────────
+# PUBLIC PROFILE (Your Tribe Status / Other User Profile)
+# ─────────────────────────────────────────────
+
+class PublicUserProfileSerializer(serializers.ModelSerializer):
+    """
+    Shared "core person" shape used both for the authenticated user's own
+    Tribe Status page and for viewing someone else's profile. Only ever
+    exposes information that's safe to show publicly.
+    """
+    interests = serializers.SerializerMethodField()
+
+    def get_interests(self, obj):
+        return list(obj.interests.values_list("name", flat=True))
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            "id",
+            "full_name",
+            "username",
+            "profile_image",
+            "bio",
+            "age",
+            "occupation",
+            "university",
+            "location",
+            "gender",
+            "interests",
+            "is_email_verified",
+        ]
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """PATCH /api/users/me/update/ — used by the Profile Settings screen."""
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            "username",
+            "bio",
+            "age",
+            "occupation",
+            "university",
+            "location",
+            "profile_image",
+        ]
+
+    def validate_username(self, value):
+        if not value:
+            return value
+        qs = CustomUser.objects.filter(username__iexact=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("That username is already taken.")
+        return value
+
+    def validate_age(self, value):
+        if value is not None and (value < 13 or value > 100):
+            raise serializers.ValidationError("Please enter a valid age.")
+        return value
+
+
+class ReportUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserReport
+        fields = ["reason", "details"]
