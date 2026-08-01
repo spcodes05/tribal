@@ -1,4 +1,6 @@
 from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes
+from django.shortcuts import get_object_or_404
 
 
 
@@ -16,9 +19,12 @@ from .serializers import (
     GenderSerializer,
     SaveInterestsSerializer,
     UserDetailSerializer,
+    PublicUserProfileSerializer,
+    ProfileUpdateSerializer,
+    ReportUserSerializer,
 )
 from .emails import send_verification_email
-from .models import Interest
+from .models import Interest, UserBlock, UserReport
 
 User = get_user_model()
 
@@ -497,3 +503,275 @@ class LocationView(APIView):
             'latitude': lat,
             'longitude': lon,
         })
+
+
+# ─────────────────────────────────────────────
+# TRIBE STATUS (own profile: stats + upcoming activity + timeline + achievements)
+# ─────────────────────────────────────────────
+ 
+class TribeStatusView(APIView):
+    """
+    GET /api/users/me/tribe-status/
+ 
+    Single aggregate endpoint (same pattern as events.HomeFeedView) so the
+    "Your Tribe Status" screen renders in one round trip.
+ 
+    Every number returned here is computed from real, existing data:
+      - activities_joined / events_hosted -> apps.events
+      - roommate_matches                  -> apps.roommate
+      - people_met / chat_streak          -> apps.chat
+ 
+    No "Friends Made" or "Communities Joined" stat is returned — Tribal has
+    no friendship or community model, so those numbers can't be computed
+    honestly. Achievements are derived thresholds on the same real counts.
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def get(self, request):
+        from apps.events.models import Activity, ActivityMember
+        from apps.events.serializers import ActivityCardSerializer
+        from apps.roommate.models import RoommateMatch
+        from apps.chat.models import Chat, Message
+ 
+        user = request.user
+ 
+        # ── Stats ──────────────────────────────────────────────────────────
+        activities_joined = ActivityMember.objects.filter(user=user).count()
+        events_hosted = Activity.objects.filter(host=user).count()
+        roommate_matches = RoommateMatch.objects.filter(user=user).count()
+ 
+        chat_partner_ids = set()
+        for chat in Chat.for_user(user).select_related("participant_one", "participant_two"):
+            try:
+                chat_partner_ids.add(chat.get_other_participant(user).id)
+            except ValueError:
+                continue
+        roommate_partner_ids = set(
+            RoommateMatch.objects.filter(user=user).values_list("matched_user_id", flat=True)
+        )
+        people_met = len(chat_partner_ids | roommate_partner_ids)
+ 
+        chat_streak = self._compute_chat_streak(user, Message)
+ 
+        stats = {
+            "activities_joined": activities_joined,
+            "events_hosted": events_hosted,
+            "roommate_matches": roommate_matches,
+            "people_met": people_met,
+            "chat_streak": chat_streak,
+        }
+ 
+        # ── Upcoming activity (soonest one the user has joined, in the future) ──
+        upcoming_member = (
+            ActivityMember.objects
+            .filter(user=user, activity__date__gte=timezone.localdate())
+            .select_related("activity", "activity__host")
+            .order_by("activity__date", "activity__time")
+            .first()
+        )
+        upcoming_activity = None
+        if upcoming_member is not None:
+            upcoming_activity = ActivityCardSerializer(
+                upcoming_member.activity, context={"request": request}
+            ).data
+ 
+        # ── Recent timeline (joined / hosted / matched, newest first) ───────
+        timeline = []
+        for m in (
+            ActivityMember.objects.filter(user=user)
+            .select_related("activity")
+            .order_by("-joined_at")[:5]
+        ):
+            timeline.append({
+                "type": "joined_activity",
+                "title": f"Joined {m.activity.title}",
+                "date": m.joined_at.isoformat(),
+                "location": m.activity.location,
+                "people_count": m.activity.member_count,
+                "image_url": m.activity.image_url or None,
+            })
+        for a in Activity.objects.filter(host=user).order_by("-created_at")[:5]:
+            timeline.append({
+                "type": "hosted_activity",
+                "title": f"Hosted {a.title}",
+                "date": a.created_at.isoformat(),
+                "location": a.location,
+                "people_count": a.member_count,
+                "image_url": a.image_url or None,
+            })
+        for rm in (
+            RoommateMatch.objects.filter(user=user)
+            .select_related("matched_user")
+            .order_by("-created_at")[:5]
+        ):
+            timeline.append({
+                "type": "roommate_match",
+                "title": f"Matched with {rm.matched_user.full_name}",
+                "date": rm.created_at.isoformat(),
+                "location": None,
+                "people_count": None,
+                "image_url": None,
+            })
+        timeline.sort(key=lambda e: e["date"], reverse=True)
+        timeline = timeline[:8]
+ 
+        # ── Achievements (derived thresholds on real counts) ────────────────
+        achievements = [
+            {"key": "explorer", "label": "Explorer", "description": "Joined 5+ activities", "earned": activities_joined >= 5},
+            {"key": "host", "label": "Host", "description": "Hosted your first activity", "earned": events_hosted >= 1},
+            {"key": "roommate_ready", "label": "Roommate Ready", "description": "Found a roommate match", "earned": roommate_matches >= 1},
+            {"key": "conversationalist", "label": "Conversationalist", "description": "3-day chat streak", "earned": chat_streak >= 3},
+            {"key": "social_butterfly", "label": "Social Butterfly", "description": "Met 5+ people", "earned": people_met >= 5},
+        ]
+ 
+        return Response({
+            "profile": PublicUserProfileSerializer(user).data,
+            "stats": stats,
+            "upcoming_activity": upcoming_activity,
+            "recent_timeline": timeline,
+            "achievements": achievements,
+        })
+ 
+    @staticmethod
+    def _compute_chat_streak(user, Message):
+        dates = set(
+            Message.objects.filter(sender=user).values_list("timestamp", flat=True)
+        )
+        date_set = {ts.date() for ts in dates}
+        if not date_set:
+            return 0
+ 
+        today = timezone.localdate()
+        cursor = today
+        if cursor not in date_set:
+            cursor = cursor - timedelta(days=1)
+            if cursor not in date_set:
+                return 0
+ 
+        streak = 0
+        while cursor in date_set:
+            streak += 1
+            cursor -= timedelta(days=1)
+        return streak
+ 
+ 
+# ─────────────────────────────────────────────
+# PROFILE UPDATE (Settings screen)
+# ─────────────────────────────────────────────
+ 
+class UpdateProfileView(APIView):
+    """PATCH /api/users/me/update/"""
+    permission_classes = [IsAuthenticated]
+ 
+    def patch(self, request):
+        serializer = ProfileUpdateSerializer(
+            instance=request.user, data=request.data, partial=True,
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(PublicUserProfileSerializer(request.user).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+ 
+ 
+# ─────────────────────────────────────────────
+# OTHER USER PROFILE
+# ─────────────────────────────────────────────
+ 
+class PublicProfileView(APIView):
+    """
+    GET /api/users/<user_id>/profile/
+ 
+    Returns another user's public profile plus context relative to the
+    requesting user: mutual interests, roommate compatibility (only if a
+    real RoommateMatch row exists between the two — never fabricated),
+    and their public tribe activity.
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def get(self, request, user_id):
+        from apps.roommate.models import RoommateMatch
+        from apps.events.models import Activity, ActivityMember
+ 
+        target = get_object_or_404(User, pk=user_id, is_active=True)
+ 
+        # Hide profiles that have blocked the requester.
+        if UserBlock.objects.filter(blocker=target, blocked=request.user).exists():
+            return Response({"detail": "This profile is not available."}, status=status.HTTP_404_NOT_FOUND)
+ 
+        my_interests = set(request.user.interests.values_list("name", flat=True))
+        their_interests = set(target.interests.values_list("name", flat=True))
+        mutual_interests = sorted(my_interests & their_interests)
+ 
+        # Only use a real, already-computed roommate score. Never invent one.
+        match = (
+            RoommateMatch.objects.filter(
+                Q(user=request.user, matched_user=target) | Q(user=target, matched_user=request.user)
+            ).order_by("-updated_at").first()
+        )
+        compatibility_percent = round(float(match.compatibility_score)) if match else None
+ 
+        activities_joined = ActivityMember.objects.filter(user=target).count()
+        recent_public_events = [
+            {"title": m.activity.title, "date": m.activity.date.isoformat(), "location": m.activity.location}
+            for m in (
+                ActivityMember.objects.filter(user=target)
+                .select_related("activity")
+                .order_by("-joined_at")[:5]
+            )
+        ]
+ 
+        is_blocked_by_me = UserBlock.objects.filter(blocker=request.user, blocked=target).exists()
+ 
+        return Response({
+            "profile": PublicUserProfileSerializer(target).data,
+            "mutual_interests": mutual_interests,
+            "compatibility_percent": compatibility_percent,
+            "tribe_activity": {
+                "activities_joined": activities_joined,
+                "recent_public_events": recent_public_events,
+            },
+            "is_blocked_by_me": is_blocked_by_me,
+        })
+ 
+ 
+# ─────────────────────────────────────────────
+# BLOCK / REPORT
+# ─────────────────────────────────────────────
+ 
+class BlockUserView(APIView):
+    """
+    POST   /api/users/<user_id>/block/   — block
+    DELETE /api/users/<user_id>/block/   — unblock
+    """
+    permission_classes = [IsAuthenticated]
+ 
+    def post(self, request, user_id):
+        target = get_object_or_404(User, pk=user_id)
+        if target.id == request.user.id:
+            return Response({"detail": "You cannot block yourself."}, status=status.HTTP_400_BAD_REQUEST)
+        UserBlock.objects.get_or_create(blocker=request.user, blocked=target)
+        return Response({"detail": "User blocked.", "is_blocked": True})
+ 
+    def delete(self, request, user_id):
+        target = get_object_or_404(User, pk=user_id)
+        UserBlock.objects.filter(blocker=request.user, blocked=target).delete()
+        return Response({"detail": "User unblocked.", "is_blocked": False})
+ 
+ 
+class ReportUserView(APIView):
+    """POST /api/users/<user_id>/report/  Body: { "reason": "...", "details": "..." }"""
+    permission_classes = [IsAuthenticated]
+ 
+    def post(self, request, user_id):
+        target = get_object_or_404(User, pk=user_id)
+        serializer = ReportUserSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+ 
+        UserReport.objects.create(
+            reporter=request.user,
+            reported_user=target,
+            reason=serializer.validated_data["reason"],
+            details=serializer.validated_data.get("details", ""),
+        )
+        return Response({"detail": "Report submitted. Our team will review it."}, status=status.HTTP_201_CREATED)

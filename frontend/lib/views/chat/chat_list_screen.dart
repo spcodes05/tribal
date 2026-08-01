@@ -158,6 +158,7 @@ class _ChatListViewState extends State<_ChatListView> {
               AppRoutes.chatConversation.replaceFirst(':id', chat.id.toString()),
               extra: ChatConversationArgs(
                 chatId: chat.id,
+                otherUserId: chat.otherUserId,
                 otherUserFullName: chat.otherUserFullName,
                 otherUserProfileImage: chat.otherUserProfileImage,
               ),

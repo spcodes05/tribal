@@ -39,6 +39,10 @@ import '../../views/chat/chat_list_screen.dart';
 import '../../views/chat/chat_screen.dart';
 import '../../models/chat_model.dart';
 import '../../views/safety/safety_screen.dart';
+import '../../views/profile/tribe_status_screen.dart';
+import '../../views/profile/other_user_profile_screen.dart';
+import '../../views/profile/profile_settings_screen.dart';
+import '../../models/profile_model.dart';
 
 
 /// Named route constants and GoRouter configuration for TRIBAL.
@@ -103,6 +107,14 @@ class AppRoutes {
   static const String seeAllPeople = '/see-all/people';
   static const String chatList = '/chat';
   static const String chatConversation = '/chat/:id';
+  static const String tribeStatus = '/tribe-status';
+  static const String profileSettings = '/tribe-status/settings';
+  static const String otherUserProfile = '/profile/:id';
+
+  /// Builds the concrete path for [otherUserProfile], e.g.
+  /// otherUserProfilePath(42) -> '/profile/42'.
+  static String otherUserProfilePath(int userId) =>
+      otherUserProfile.replaceFirst(':id', userId.toString());
 
   /// The root GoRouter instance.
   static final GoRouter router = GoRouter(
@@ -199,6 +211,27 @@ class AppRoutes {
                   otherUserFullName: 'Conversation',
                 ),
           );
+        },
+      ),
+
+      // -- Your Tribe Status / Other User Profile ------------------------
+      GoRoute(
+        path: tribeStatus,
+        name: 'tribeStatus',
+        builder: (_, __) => const TribeStatusScreen(),
+      ),
+      GoRoute(
+        path: profileSettings,
+        name: 'profileSettings',
+        builder: (_, __) => const ProfileSettingsScreen(),
+      ),
+      GoRoute(
+        path: otherUserProfile,
+        name: 'otherUserProfile',
+        builder: (_, state) {
+          final userId = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          final args = state.extra as OtherProfileNavArgs?;
+          return OtherUserProfileScreen(userId: userId, navArgs: args);
         },
       ),
 

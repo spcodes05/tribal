@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/chat_model.dart';
 import '../../services/chat_socket_service.dart';
 import '../../widgets/message_bubble.dart';
+import '../../core/routes/app_routes.dart';
 
 /// The 1:1 conversation screen.
 ///
@@ -67,7 +68,9 @@ class _ChatViewState extends State<_ChatView> {
 
   Future<void> _handleSend() async {
     final text = _inputController.text;
-    if (text.trim().isEmpty) return;
+    if (text
+        .trim()
+        .isEmpty) return;
     _inputController.clear();
 
     final ctrl = context.read<ConversationController>();
@@ -75,7 +78,8 @@ class _ChatViewState extends State<_ChatView> {
 
     if (!mounted) return;
     if (!ok && ctrl.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ctrl.error!)));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ctrl.error!)));
     }
   }
 
@@ -102,11 +106,13 @@ class _ChatViewState extends State<_ChatView> {
               color: AppColors.textPrimary, size: 20),
         ),
         titleSpacing: 0,
-        title: _ConversationHeader(args: widget.args, socketStatus: ctrl.socketStatus),
+        title: _ConversationHeader(
+            args: widget.args, socketStatus: ctrl.socketStatus),
         actions: [
           IconButton(
             onPressed: () => _showMenuSheet(context),
-            icon: const Icon(Icons.more_vert_rounded, color: AppColors.textPrimary),
+            icon: const Icon(
+                Icons.more_vert_rounded, color: AppColors.textPrimary),
           ),
         ],
       ),
@@ -127,7 +133,8 @@ class _ChatViewState extends State<_ChatView> {
 
   Widget _buildBody(ConversationController ctrl) {
     if (ctrl.isLoading && ctrl.messages.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     if (ctrl.error != null && ctrl.messages.isEmpty) {
@@ -140,14 +147,16 @@ class _ChatViewState extends State<_ChatView> {
               Text(
                 ctrl.error!,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+                style: GoogleFonts.poppins(
+                    fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: ctrl.retry,
                 child: Text(
                   'Retry',
-                  style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(
+                      color: AppColors.primary, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -160,7 +169,8 @@ class _ChatViewState extends State<_ChatView> {
       return Center(
         child: Text(
           'No messages yet. Say hi 👋',
-          style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+          style: GoogleFonts.poppins(
+              fontSize: 13, color: AppColors.textSecondary),
         ),
       );
     }
@@ -177,33 +187,49 @@ class _ChatViewState extends State<_ChatView> {
   }
 
   void _showMenuSheet(BuildContext context) {
+    final otherUserId = widget.args.otherUserId;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(4),
-              ),
+      builder: (_) =>
+          SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _MenuTile(
+                  icon: Icons.person_outline_rounded,
+                  label: 'View profile',
+                  onTap: otherUserId == null
+                      ? null
+                      : () {
+                    Navigator.of(context).pop();
+                    context.push(
+                      AppRoutes.otherUserProfilePath(otherUserId),
+                    );
+                  },
+                ),
+                _MenuTile(icon: Icons.notifications_off_outlined,
+                    label: 'Mute notifications'),
+                _MenuTile(icon: Icons.block_rounded,
+                    label: 'Block',
+                    isDestructive: true),
+                const SizedBox(height: 8),
+              ],
             ),
-            const SizedBox(height: 12),
-            _MenuTile(icon: Icons.person_outline_rounded, label: 'View profile'),
-            _MenuTile(icon: Icons.notifications_off_outlined, label: 'Mute notifications'),
-            _MenuTile(icon: Icons.block_rounded, label: 'Block', isDestructive: true),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }
@@ -392,7 +418,8 @@ class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isDestructive;
-  const _MenuTile({required this.icon, required this.label, this.isDestructive = false});
+  final VoidCallback? onTap;
+  const _MenuTile({required this.icon, required this.label, this.isDestructive = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -403,7 +430,7 @@ class _MenuTile extends StatelessWidget {
         label,
         style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: color),
       ),
-      onTap: () => Navigator.of(context).pop(),
+      onTap: onTap ?? () => Navigator.of(context).pop(),
     );
   }
 }

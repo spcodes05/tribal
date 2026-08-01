@@ -6,6 +6,7 @@ import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
+import '../../models/profile_model.dart';
 import '../../services/location_service.dart';
 import '../../widgets/tribal_bottom_nav.dart';
 import '../../widgets/safety_feature_button.dart';
@@ -77,33 +78,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     )
                   else ...[
-                    SliverToBoxAdapter(
-                      child: _SectionHeader(
-                        title: 'People You Might Vibe With',
-                        onSeeAll: () => context.push(AppRoutes.seeAllPeople),
+                      SliverToBoxAdapter(
+                        child: _SectionHeader(
+                          title: 'People You Might Vibe With',
+                          onSeeAll: () => context.push(AppRoutes.seeAllPeople),
+                        ),
                       ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                    SliverToBoxAdapter(
-                      child: ctrl.people.isEmpty
-                          ? _EmptyHint(text: 'No people to show yet.')
-                          : _PeopleList(people: ctrl.people),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 28)),
-                    SliverToBoxAdapter(
-                      child: _SectionHeader(
-                        title: 'Activities Near You',
-                        onSeeAll: () => context.push(AppRoutes.seeAllActivities),
+                      const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                      SliverToBoxAdapter(
+                        child: ctrl.people.isEmpty
+                            ? _EmptyHint(text: 'No people to show yet.')
+                            : _PeopleList(people: ctrl.people),
                       ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                    SliverToBoxAdapter(
-                      child: ctrl.activities.isEmpty
-                          ? _EmptyHint(text: 'No activities yet. Create one!')
-                          : _ActivitiesList(activities: ctrl.activities),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                  ],
+                      const SliverToBoxAdapter(child: SizedBox(height: 28)),
+                      SliverToBoxAdapter(
+                        child: _SectionHeader(
+                          title: 'Activities Near You',
+                          onSeeAll: () => context.push(AppRoutes.seeAllActivities),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 14)),
+                      SliverToBoxAdapter(
+                        child: ctrl.activities.isEmpty
+                            ? _EmptyHint(text: 'No activities yet. Create one!')
+                            : _ActivitiesList(activities: ctrl.activities),
+                      ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                    ],
                 ],
               ),
             ),
@@ -137,10 +138,13 @@ class _GreetingHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.surface,
-            child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 26),
+          GestureDetector(
+            onTap: () => context.push(AppRoutes.tribeStatus),
+            child: const CircleAvatar(
+              radius: 24,
+              backgroundColor: AppColors.surface,
+              child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 26),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -239,7 +243,7 @@ class _SearchBarTap extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+                    color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -319,58 +323,64 @@ class _PersonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 148,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+    return GestureDetector(
+      onTap: () => context.push(
+        AppRoutes.otherUserProfilePath(person.id),
+        extra: OtherProfileNavArgs(fallbackMatchPercent: person.matchPercent),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              const CircleAvatar(
-                radius: 30,
-                backgroundColor: AppColors.surface,
-                child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 30),
-              ),
-              Positioned(
-                bottom: -10,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
-                  child: Text(
-                    person.matchPercent != null
-                        ? '${person.matchPercent}% match'
-                        : 'Vibe ✨',
-                    style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+      child: Container(
+        width: 148,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                const CircleAvatar(
+                  radius: 30,
+                  backgroundColor: AppColors.surface,
+                  child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 30),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(person.fullName,
-              style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 4, runSpacing: 4, alignment: WrapAlignment.center,
-            children: person.interests.take(2)
-                .map((i) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-                      child: Text(i,
-                          style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
-                    ))
-                .toList(),
-          ),
-        ],
+                Positioned(
+                  bottom: -10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
+                    child: Text(
+                        person.matchPercent != null
+                            ? '${person.matchPercent}% match'
+                            : 'Vibe ✨',
+                        style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Text(person.fullName,
+                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 4, runSpacing: 4, alignment: WrapAlignment.center,
+              children: person.interests.take(2)
+                  .map((i) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
+                child: Text(i,
+                    style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+              ))
+                  .toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -419,7 +429,7 @@ class _ActivityCardWidget extends StatelessWidget {
             // Background
             activity.imageUrl != null && activity.imageUrl!.isNotEmpty
                 ? Image.network(activity.imageUrl!, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _PlaceholderBg())
+                errorBuilder: (_, __, ___) => _PlaceholderBg())
                 : _PlaceholderBg(),
 
             // Gradient overlay

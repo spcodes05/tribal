@@ -14,6 +14,13 @@ class UserModel {
   final List<String> interests;
   final bool isEmailVerified;
   final bool isOnboardingComplete;
+  final String? username;
+  final String? profileImage;
+  final String? bio;
+  final int? age;
+  final String? occupation;
+  final String? university;
+  final String? location;
 
   const UserModel({
     required this.id,
@@ -23,6 +30,13 @@ class UserModel {
     this.interests = const [],
     this.isEmailVerified = false,
     this.isOnboardingComplete = false,
+    this.username,
+    this.profileImage,
+    this.bio,
+    this.age,
+    this.occupation,
+    this.university,
+    this.location,
   });
 
   /// Creates a UserModel from a JSON map.
@@ -42,6 +56,15 @@ class UserModel {
           const [],
       isEmailVerified: json['is_email_verified'] as bool? ?? false,
       isOnboardingComplete: json['is_onboarding_complete'] as bool? ?? false,
+      username: json['username'] as String?,
+      profileImage: (json['profile_image'] as String?)?.isNotEmpty == true
+          ? json['profile_image'] as String
+          : null,
+      bio: json['bio'] as String?,
+      age: json['age'] as int?,
+      occupation: json['occupation'] as String?,
+      university: json['university'] as String?,
+      location: json['location'] as String?,
     );
   }
 
@@ -53,6 +76,13 @@ class UserModel {
     List<String>? interests,
     bool? isEmailVerified,
     bool? isOnboardingComplete,
+    String? username,
+    String? profileImage,
+    String? bio,
+    int? age,
+    String? occupation,
+    String? university,
+    String? location,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -62,6 +92,13 @@ class UserModel {
       interests: interests ?? this.interests,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       isOnboardingComplete: isOnboardingComplete ?? this.isOnboardingComplete,
+      username: username ?? this.username,
+      profileImage: profileImage ?? this.profileImage,
+      bio: bio ?? this.bio,
+      age: age ?? this.age,
+      occupation: occupation ?? this.occupation,
+      university: university ?? this.university,
+      location: location ?? this.location,
     );
   }
 
