@@ -39,6 +39,7 @@ import '../../views/chat/chat_list_screen.dart';
 import '../../views/chat/chat_screen.dart';
 import '../../models/chat_model.dart';
 import '../../views/safety/safety_screen.dart';
+import '../../views/safety/trusted_contacts_screen.dart';
 
 
 /// Named route constants and GoRouter configuration for TRIBAL.
@@ -267,6 +268,7 @@ class AppRoutes {
           GoRoute(path: roommateRoomType, name: 'roommateRoomType', builder: (c, s) => const RoomTypePreferenceScreen()),
           GoRoute(path: roommateReview, name: 'roommateReview', builder: (c, s) => const ReviewScreen()),
           GoRoute(path: roommateFinding, name: 'roommateFinding', builder: (c, s) => const FindingRoommateScreen()),
+          GoRoute(path: '/safety/trusted-contacts', name: 'trustedContacts', builder: (c, s) => const TrustedContactsScreen()),
         ],
       ),
     ],

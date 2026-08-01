@@ -1,13 +1,109 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/api_config.dart';
+import '../../services/location_service.dart';
+import '../../services/trusted_contacts_service.dart';
 import '../../widgets/tribal_bottom_nav.dart';
 
-class SafetyScreen extends StatelessWidget {
+class SafetyScreen extends StatefulWidget {
   const SafetyScreen({super.key});
+
+  @override
+  State<SafetyScreen> createState() => _SafetyScreenState();
+}
+
+class _SafetyScreenState extends State<SafetyScreen> {
+  bool _isActivating = false;
+  bool _isLocationSharing = false;
+  List<Map<String, dynamic>> _trustedContacts = [];
+  int get _trustedContactsCount => _trustedContacts.length;
+  Timer? _locationTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTrustedContacts();
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchTrustedContacts() async {
+    try {
+      final contacts = await TrustedContactsService.instance.getTrustedContacts();
+      if (mounted) setState(() => _trustedContacts = contacts);
+    } catch (_) {
+      // Non-critical — keep default empty list
+    }
+  }
+
+  void _toggleLocationSharing(bool value) {
+    setState(() => _isLocationSharing = value);
+    if (value) {
+      LocationService.instance.requestAndSave();
+      _locationTimer = Timer.periodic(
+        const Duration(minutes: 2),
+            (_) => LocationService.instance.requestAndSave(),
+      );
+    } else {
+      _locationTimer?.cancel();
+      _locationTimer = null;
+    }
+  }
+
+  Future<void> _handleSOS() async {
+    if (_isActivating) return;
+    setState(() => _isActivating = true);
+
+    // Best-effort location update — existing service, failure is non-blocking.
+    await LocationService.instance.requestAndSave();
+
+    try {
+      final response = await ApiClient.instance.dio.post(ApiConfig.sosActivate);
+      if (!mounted) return;
+
+      final message = (response.data is Map && response.data['message'] != null)
+          ? response.data['message'] as String
+          : 'SOS activated. Your trusted contacts have been notified.';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFF2E7D32),
+        ),
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final apiError = ApiException.fromDio(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(apiError.message),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Something went wrong. Please try again.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isActivating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,55 +145,62 @@ class SafetyScreen extends StatelessWidget {
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 260,
-                      height: 260,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primary.withOpacity(0.06),
-                      ),
+                    GestureDetector(
+                      onTap: _handleSOS,
                       child: Container(
-                        width: 190,
-                        height: 190,
+                        width: 260,
+                        height: 260,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.primary.withOpacity(0.12),
+                          color: AppColors.primary.withOpacity(0.06),
                         ),
                         child: Container(
-                          width: 130,
-                          height: 130,
+                          width: 190,
+                          height: 190,
+                          alignment: Alignment.center,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AppColors.primary, // deep maroon
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withOpacity(0.4),
-                                blurRadius: 20,
-                                spreadRadius: 2,
-                              ),
-                            ],
+                            color: AppColors.primary.withOpacity(0.12),
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.shield,
-                                color: Colors.white,
-                                size: 26,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'SOS',
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.2,
+                          child: Container(
+                            width: 130,
+                            height: 130,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary, // deep maroon
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.4),
+                                  blurRadius: 20,
+                                  spreadRadius: 2,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            child: _isActivating
+                                ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                                : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.shield,
+                                  color: Colors.white,
+                                  size: 26,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'SOS',
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -113,7 +216,9 @@ class SafetyScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: Text(
-                        'Hold 2 seconds to activate',
+                        _isActivating
+                            ? 'Activating...'
+                            : 'Hold 2 seconds to activate',
                         style: GoogleFonts.poppins(
                           fontSize: 13,
                           color: Colors.black54,
@@ -179,9 +284,9 @@ class SafetyScreen extends StatelessWidget {
                       ),
                     ),
                     CupertinoSwitch(
-                      value: true, // UI only, static
+                      value: _isLocationSharing,
                       activeColor: AppColors.primary,
-                      onChanged: (_) {}, // no logic per requirements
+                      onChanged: _toggleLocationSharing,
                     ),
                   ],
                 ),
@@ -236,32 +341,59 @@ class SafetyScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: Colors.black38,
+                        InkWell(
+                          onTap: () => context.push('/safety/trusted-contacts'),
+                          child: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.black38,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
                     Row(
                       children: [
-                        _avatarPlaceholder(),
-                        const SizedBox(width: 8),
-                        _avatarPlaceholder(),
-                        const SizedBox(width: 8),
-                        _avatarPlaceholder(),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.black26),
+                        ..._trustedContacts.take(3).map(
+                              (_) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: _avatarPlaceholder(),
                           ),
-                          child: const Icon(
-                            Icons.add,
-                            size: 18,
-                            color: Colors.black54,
+                        ),
+                        if (_trustedContacts.length > 3)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              alignment: Alignment.center,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFFD9D9D9),
+                              ),
+                              child: Text(
+                                '+${_trustedContacts.length - 3}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ),
+                        GestureDetector(
+                          onTap: () => context.push('/safety/trusted-contacts'),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.black26),
+                            ),
+                            child: const Icon(
+                              Icons.add,
+                              size: 18,
+                              color: Colors.black54,
+                            ),
                           ),
                         ),
                       ],
@@ -331,41 +463,43 @@ class SafetyScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              if (_isLocationSharing) ...[
+                const SizedBox(height: 16),
 
-              // ---------------- SAFETY STATUS BANNER ----------------
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32), // safe green
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.shield,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'You are safe · Location shared with 2 contacts',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                // ---------------- SAFETY STATUS BANNER ----------------
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E7D32), // safe green
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.shield,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'You are safe · Location shared with $_trustedContactsCount contacts',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
 
               const SizedBox(height: 20),
             ],
@@ -388,17 +522,3 @@ class SafetyScreen extends StatelessWidget {
     );
   }
 }
-/*import 'package:flutter/material.dart';
-
-class SafetyScreen extends StatelessWidget {
-  const SafetyScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text("Safety Screen"),
-      ),
-    );
-  }
-}*/

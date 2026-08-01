@@ -45,6 +45,17 @@ class ApiConfig {
   static String messageRead(int messageId) => '/chat/message/$messageId/read/';
   static String messageDelete(int messageId) => '/chat/message/$messageId/';
 
+  // ── Safety endpoints (apps/safety/urls.py) ─────────────────────────────
+  static const String safetySettings = '/safety/settings/';
+  static const String trustedContacts = '/safety/trusted-contacts/';
+  static String trustedContactDelete(int pk) => '/safety/trusted-contacts/$pk/';
+  static const String safetyLocationUpdate = '/safety/location/';
+  static String trustedUserLocation(int userId) => '/safety/location/$userId/';
+  static const String sosActivate = '/safety/sos/activate/';
+  static const String sosEnd = '/safety/sos/end/';
+  // ── User search endpoint (apps/users/urls.py) ───────────────────────────
+  static const String userSearch = '/users/search/';
+
   // ── Token endpoints (config/urls.py — simplejwt) ──────────────────────────
   static const String tokenRefresh = '/token/refresh/';
 
