@@ -39,7 +39,7 @@ class TribalBottomNav extends StatelessWidget {
       label: 'Chat',
       icon: Icons.chat_bubble_outline_rounded,
       activeIcon: Icons.chat_bubble_rounded,
-      route: null, // not implemented yet
+      route: AppRoutes.chatList,
     ),
     _TabConfig(
       label: 'Roommate',

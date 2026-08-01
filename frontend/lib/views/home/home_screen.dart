@@ -8,6 +8,7 @@ import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
 import '../../services/location_service.dart';
 import '../../widgets/tribal_bottom_nav.dart';
+import '../../widgets/safety_feature_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,6 +44,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   SliverToBoxAdapter(child: _GreetingHeader(ctrl: ctrl)),
                   const SliverToBoxAdapter(child: SizedBox(height: 16)),
                   const SliverToBoxAdapter(child: _SearchBarTap()),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                  const SliverToBoxAdapter(
+                    child: SafetyFeatureButton(),
+                  ),
+
                   const SliverToBoxAdapter(child: SizedBox(height: 28)),
 
                   if (ctrl.isLoading && ctrl.activities.isEmpty)
@@ -51,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CircularProgressIndicator(color: AppColors.primary),
                       ),
                     )
+
                   else if (ctrl.error != null && ctrl.activities.isEmpty)
                     SliverFillRemaining(
                       child: Center(
