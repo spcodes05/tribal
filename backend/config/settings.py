@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.events',
     'apps.roommate',
     'apps.accounts',
+    'apps.safety',
 ]
 
 MIDDLEWARE = [
