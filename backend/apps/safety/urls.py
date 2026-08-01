@@ -6,6 +6,7 @@ from .views import (
     UserLocationUpdateView,
     TrustedUserLocationView,
     SOSActivateView,
+    SOSDeactivateView,
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path("location/", UserLocationUpdateView.as_view(), name="user-location-update"),
     path("location/<int:user_id>/", TrustedUserLocationView.as_view(), name="trusted-user-location"),
     path("sos/activate/", SOSActivateView.as_view(), name="sos-activate"),
+    path("sos/end/", SOSDeactivateView.as_view(), name="sos-end"),
 ]
