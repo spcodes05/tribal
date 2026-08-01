@@ -5,7 +5,7 @@
 ### *AI-powered platform to discover friends, activity partners, and compatible roommates.*
 
 <p align="center">
-<img width="200" height="200" alt="logo" src="https://github.com/user-attachments/assets/0d1ce8e5-d880-4100-851d-80b9ef28fa98" />
+<img width="100" height="100" alt="logo" src="https://github.com/user-attachments/assets/0d1ce8e5-d880-4100-851d-80b9ef28fa98" />
 
 </p>
 
