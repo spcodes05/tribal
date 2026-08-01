@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Interest, GENDER_CHOICES, PREDEFINED_INTERESTS
+from .models import CustomUser
 
 User = get_user_model()
 
@@ -124,7 +125,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     # read_only=True means this field is for output only.
 
     class Meta:
-        model = User
+        model = CustomUser
         fields = [
             "id",
             "full_name",
@@ -135,4 +136,13 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "gender",
             "interests",
             "is_onboarding_complete",
+        ]
+
+class UserSearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = [
+            "id",
+            "full_name",
+            "email",
         ]

@@ -8,6 +8,7 @@ from .views import (
     InterestsView,
     MeView,
     LocationView,
+    UserSearchView,
 )
 from .views import set_gender, set_interests
 
@@ -22,4 +23,5 @@ urlpatterns = [
     path("location/", LocationView.as_view(), name="user-location"),
     path("set-gender/", set_gender),
     path("set-interests/", set_interests),
+    path("search/", UserSearchView.as_view(), name="user-search"),
 ]

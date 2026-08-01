@@ -6,6 +6,17 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.generics import ListAPIView
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
+from .serializers import (
+    RegisterSerializer,
+    UserDetailSerializer,
+    UserSearchSerializer,
+)
+
+from .models import CustomUser
+
 
 
 
@@ -497,3 +508,21 @@ class LocationView(APIView):
             'latitude': lat,
             'longitude': lon,
         })
+
+class UserSearchView(ListAPIView):
+    serializer_class = UserSearchSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        query = self.request.query_params.get("query", "")
+
+        if not query:
+            return CustomUser.objects.none()
+
+        return CustomUser.objects.filter(
+            Q(full_name__icontains=query) |
+            Q(email__icontains=query)
+        ).exclude(
+            id=self.request.user.id
+        )
+

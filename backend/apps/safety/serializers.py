@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import SafetySettings, TrustedContact, UserLocation, SOSSession
+from django.contrib.auth import get_user_model
 
 
 class SafetySettingsSerializer(serializers.ModelSerializer):
@@ -15,13 +16,27 @@ class SafetySettingsSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "user", "created_at", "updated_at"]
 
 
+class TrustedUserDetailSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = get_user_model()
+        fields = ["id", "full_name", "email"]
+
+    def get_full_name(self, obj):
+       return obj.full_name
+
+
 class TrustedContactSerializer(serializers.ModelSerializer):
+    trusted_user_detail = TrustedUserDetailSerializer(source="trusted_user", read_only=True)
+
     class Meta:
         model = TrustedContact
         fields = [
             "id",
             "owner",
             "trusted_user",
+            "trusted_user_detail",
             "created_at",
         ]
         read_only_fields = ["id", "owner", "created_at"]
