@@ -5,7 +5,7 @@
 ### *AI-powered platform to discover friends, activity partners, and compatible roommates.*
 
 <p align="center">
-<img src="docs/logo.png" width="180"/>
+<img src="tribal/frontend/assets/image/logo.png" width="180"/>
 </p>
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter)
@@ -217,7 +217,11 @@ This produces meaningful recommendations rather than random matches.
 
 | Home | Matching | Chat | Roommate |
 |------|----------|------|-----------|
-| Add Screenshot | Add Screenshot | Add Screenshot | Add Screenshot |
+| <img width="205" height="428" alt="image" src="https://github.com/user-attachments/assets/a1fcf94a-edd8-49fa-be16-da69f2b23d50" />
+ | <img width="199" height="434" alt="image" src="https://github.com/user-attachments/assets/b8c646ac-924e-4dcd-8219-0535d622c54c" />
+ | <img width="202" height="437" alt="image" src="https://github.com/user-attachments/assets/11b3e52a-816f-49f3-8019-cf069a2aadca" />
+ | <img width="200" height="443" alt="image" src="https://github.com/user-attachments/assets/2bb5aad9-56b7-4a50-9160-0c1d11a429c9" />
+ |
 
 ---
 
