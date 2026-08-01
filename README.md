@@ -5,7 +5,8 @@
 ### *AI-powered platform to discover friends, activity partners, and compatible roommates.*
 
 <p align="center">
-<img src="tribal/frontend/assets/image/logo.png" width="180"/>
+<img width="679" height="543" alt="logo" src="https://github.com/user-attachments/assets/0d1ce8e5-d880-4100-851d-80b9ef28fa98" />
+
 </p>
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter)
