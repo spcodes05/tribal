@@ -146,6 +146,7 @@ class Notification(models.Model):
         ('join', 'Someone joined your activity'),
         ('match', 'New activity matches your interests'),
         ('reminder', 'Activity reminder'),
+        ('sos', 'SOS emergency alert'),
     ]
 
     recipient = models.ForeignKey(

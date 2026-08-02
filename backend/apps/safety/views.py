@@ -5,6 +5,7 @@ from apps.users.models import CustomUser
 from .models import SafetySettings, TrustedContact, UserLocation, SOSSession
 from .serializers import SafetySettingsSerializer, TrustedContactSerializer, UserLocationSerializer, SOSSessionSerializer
 from django.utils import timezone
+from apps.events.models import Notification
 
 
 class SafetySettingsView(generics.RetrieveUpdateAPIView):
@@ -126,6 +127,16 @@ class SOSActivateView(generics.GenericAPIView):
         session = SOSSession.objects.create(
             user=request.user, status=SOSSession.Status.ACTIVE
         )
+
+        trusted_contacts = TrustedContact.objects.filter(owner=request.user)
+        for contact in trusted_contacts:
+            Notification.objects.create(
+                recipient=contact.trusted_user,
+                notification_type='sos',
+                title='SOS Alert',
+                body=f"{request.user.full_name} has activated an SOS alert and needs help.",
+            )
+
         serializer = self.get_serializer(session)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
