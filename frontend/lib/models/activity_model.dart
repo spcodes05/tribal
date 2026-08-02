@@ -12,10 +12,10 @@ class ActivityHost {
   });
 
   factory ActivityHost.fromJson(Map<String, dynamic> json) => ActivityHost(
-        id: json['id'] as int,
-        fullName: json['full_name'] as String? ?? '',
-        isVerified: json['is_email_verified'] as bool? ?? false,
-      );
+    id: json['id'] as int,
+    fullName: json['full_name'] as String? ?? '',
+    isVerified: json['is_email_verified'] as bool? ?? false,
+  );
 }
 
 class ActivityMemberModel {
@@ -219,9 +219,65 @@ class PersonMatchModel {
         fullName: json['full_name'] as String? ?? '',
         gender: json['gender'] as String?,
         interests: (json['interests'] as List<dynamic>?)
-                ?.map((e) => e.toString())
-                .toList() ??
+            ?.map((e) => e.toString())
+            .toList() ??
             [],
         matchPercent: json['match_percent'] as int?,
+      );
+}
+
+/// Lightweight model for map pins on the Explore screen.
+class ActivityPinModel {
+  final int id;
+  final String title;
+  final double latitude;
+  final double longitude;
+  final String location;
+  final String date;
+  final String time;
+  final int memberCount;
+  final int maxMembers;
+  final bool isFree;
+  final bool isWomenOnly;
+  final bool isAccessible;
+  final String? imageUrl;
+  final List<String> tags;
+  final String pinLabel;
+
+  const ActivityPinModel({
+    required this.id,
+    required this.title,
+    required this.latitude,
+    required this.longitude,
+    required this.location,
+    required this.date,
+    required this.time,
+    required this.memberCount,
+    required this.maxMembers,
+    required this.isFree,
+    required this.isWomenOnly,
+    required this.isAccessible,
+    this.imageUrl,
+    required this.tags,
+    required this.pinLabel,
+  });
+
+  factory ActivityPinModel.fromJson(Map<String, dynamic> json) =>
+      ActivityPinModel(
+        id: json['id'] as int,
+        title: json['title'] as String,
+        latitude: (json['latitude'] as num).toDouble(),
+        longitude: (json['longitude'] as num).toDouble(),
+        location: json['location'] as String? ?? '',
+        date: json['date'] as String? ?? '',
+        time: json['time'] as String? ?? '',
+        memberCount: json['member_count'] as int? ?? 0,
+        maxMembers: json['max_members'] as int? ?? 20,
+        isFree: json['is_free'] as bool? ?? true,
+        isWomenOnly: json['is_women_only'] as bool? ?? false,
+        isAccessible: json['is_accessible'] as bool? ?? false,
+        imageUrl: json['image_url'] as String?,
+        tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+        pinLabel: json['pin_label'] as String? ?? json['title'] as String,
       );
 }

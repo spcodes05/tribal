@@ -135,4 +135,33 @@ class EventsService {
       throw ApiException.fromDio(e);
     }
   }
+
+  // ── Map pins ──────────────────────────────────────────────────────────────
+
+  /// GET /api/events/activities/map/
+  /// Supports optional query params: tag, is_free, is_women_only, this_weekend
+  Future<List<ActivityPinModel>> getActivityPins({
+    String? tag,
+    bool? isFree,
+    bool? isWomenOnly,
+    bool? thisWeekend,
+  }) async {
+    try {
+      final params = <String, dynamic>{};
+      if (tag != null) params['tag'] = tag;
+      if (isFree == true) params['is_free'] = 'true';
+      if (isWomenOnly == true) params['is_women_only'] = 'true';
+      if (thisWeekend == true) params['this_weekend'] = 'true';
+
+      final res = await _dio.get(
+        ApiConfig.activitiesMap,
+        queryParameters: params.isEmpty ? null : params,
+      );
+      return (res.data as List)
+          .map((e) => ActivityPinModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }
