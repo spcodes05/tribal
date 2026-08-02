@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../services/trusted_contacts_service.dart';
+import 'package:dio/dio.dart';
+
+import '../../core/network/api_client.dart';
+import '../../core/network/api_config.dart';
 
 class TrustedContactsScreen extends StatefulWidget {
   const TrustedContactsScreen({super.key});
@@ -111,6 +115,42 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Failed to remove contact.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
+  Future<void> _viewLocation(int userId) async {
+    try {
+      final response = await ApiClient.instance.dio.get(
+        ApiConfig.trustedUserLocation(userId),
+      );
+      final lat = response.data['latitude'];
+      final lon = response.data['longitude'];
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Latitude: $lat, Longitude: $lon'),
+          backgroundColor: const Color(0xFF2E7D32),
+        ),
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final message = (e.response?.data is Map && e.response?.data['detail'] != null)
+          ? e.response!.data['detail'] as String
+          : 'Failed to fetch location.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to fetch location.'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -271,6 +311,14 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                                 ],
                               ],
                             ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.location_on_outlined, color: Colors.black54),
+                            onPressed: () {
+                              final detail = contact['trusted_user_detail'] as Map<String, dynamic>?;
+                              final userId = detail?['id'] as int?;
+                              if (userId != null) _viewLocation(userId);
+                            },
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),

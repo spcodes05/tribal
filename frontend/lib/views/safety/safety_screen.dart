@@ -73,6 +73,14 @@ class _SafetyScreenState extends State<SafetyScreen> {
       final response = await ApiClient.instance.dio.post(ApiConfig.sosActivate);
       if (!mounted) return;
 
+      if (_locationTimer == null) {
+        LocationService.instance.requestAndSave();
+        _locationTimer = Timer.periodic(
+          const Duration(minutes: 2),
+              (_) => LocationService.instance.requestAndSave(),
+        );
+      }
+
       final message = (response.data is Map && response.data['message'] != null)
           ? response.data['message'] as String
           : 'SOS activated. Your trusted contacts have been notified.';
