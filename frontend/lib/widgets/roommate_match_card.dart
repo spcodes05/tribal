@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/constants/app_colors.dart';
+import 'user_avatar.dart';
 
 /// Card matching the "Find a Roommate" mockup — score bar reflects
 /// `compatibility_score` returned by `calculate_compatibility_score()`.
 class RoommateMatchCard extends StatelessWidget {
   final String name;
+  final String? profileImage;
   final int? age;
   final String? location;
   final List<String> tags;
@@ -17,6 +19,7 @@ class RoommateMatchCard extends StatelessWidget {
   const RoommateMatchCard({
     super.key,
     required this.name,
+    this.profileImage,
     this.age,
     this.location,
     required this.tags,
@@ -43,11 +46,11 @@ class RoommateMatchCard extends StatelessWidget {
             children: [
               Column(
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(18)),
-                    child: const Icon(Icons.person_outline, color: AppColors.textHint, size: 30),
+                  UserAvatar(
+                    imageUrl: profileImage,
+                    fullName: name,
+                    radius: 32,
+                    cornerRadius: 18,
                   ),
                   if (isVerified) ...[
                     const SizedBox(height: 6),

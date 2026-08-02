@@ -6,6 +6,7 @@ __pycache__/
 # Backend
 backend/venv/
 backend/db.sqlite3
+backend/media/
 
 # Django
 *.log
@@ -37,3 +38,4 @@ frontend/.flutter-plugins-dependencies
 
 .postman/
 postman/
+

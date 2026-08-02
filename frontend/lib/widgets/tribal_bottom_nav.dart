@@ -33,7 +33,7 @@ class TribalBottomNav extends StatelessWidget {
       label: 'Explore',
       icon: Icons.explore_outlined,
       activeIcon: Icons.explore_rounded,
-      route: null, // not implemented yet
+      route: AppRoutes.explore,   // now implemented
     ),
     _TabConfig(
       label: 'Chat',

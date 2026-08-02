@@ -90,7 +90,7 @@ class HomeFeedView(APIView):
         people_data = PeopleMatchSerializer(
             ordered_people,
             many=True,
-            context={'match_percents': people_match_percents},
+            context={'request': request, 'match_percents': people_match_percents},
         ).data
 
         # ── Unread notification count (bell badge) ───────────────────────────
@@ -311,6 +311,75 @@ class SearchView(APIView):
             ).data,
             'people': PeopleMatchSerializer(
                 ordered_people, many=True,
-                context={'match_percents': people_match, "recommendation_scores": recommendation_scores},
+                context={'request': request, 'match_percents': people_match, "recommendation_scores": recommendation_scores},
             ).data,
         })
+
+
+# ── Map pins ──────────────────────────────────────────────────────────────────
+
+class ActivityMapView(APIView):
+    """
+    GET /api/events/activities/map/
+
+    Returns lightweight pin data for all activities that have coordinates.
+    Used by the Explore page map to place markers.
+
+    Supports optional filtering:
+      ?tag=Hiking          — filter by tag name
+      ?is_free=true        — free activities only
+      ?is_women_only=true  — women-only activities only
+      ?this_weekend=true   — activities on the coming Saturday or Sunday
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.utils import timezone
+        import datetime
+
+        qs = Activity.objects.filter(
+            latitude__isnull=False,
+            longitude__isnull=False,
+        ).prefetch_related('tags', 'members')
+
+        # ── Filters ───────────────────────────────────────────────────────
+        tag = request.query_params.get('tag')
+        if tag:
+            qs = qs.filter(tags__name__iexact=tag)
+
+        if request.query_params.get('is_free', '').lower() == 'true':
+            qs = qs.filter(is_free=True)
+
+        if request.query_params.get('is_women_only', '').lower() == 'true':
+            qs = qs.filter(is_women_only=True)
+
+        if request.query_params.get('this_weekend', '').lower() == 'true':
+            today = timezone.now().date()
+            days_to_saturday = (5 - today.weekday()) % 7
+            saturday = today + datetime.timedelta(days=days_to_saturday)
+            sunday = saturday + datetime.timedelta(days=1)
+            qs = qs.filter(date__range=(saturday, sunday))
+
+        pins = []
+        for activity in qs:
+            tags_list = list(activity.tags.values_list('name', flat=True))
+            pins.append({
+                'id': activity.id,
+                'title': activity.title,
+                'latitude': float(activity.latitude),
+                'longitude': float(activity.longitude),
+                'location': activity.location,
+                'date': str(activity.date),
+                'time': str(activity.time),
+                'member_count': activity.member_count,
+                'max_members': activity.max_members,
+                'is_free': activity.is_free,
+                'is_women_only': activity.is_women_only,
+                'is_accessible': activity.is_accessible,
+                'image_url': activity.image_url,
+                'tags': tags_list,
+                # Show the primary tag as the pin label (first tag or title)
+                'pin_label': tags_list[0] if tags_list else activity.title,
+            })
+
+        return Response(pins)

@@ -257,29 +257,3 @@ class ProfileTag extends StatelessWidget {
   }
 }
 
-/// Circle avatar with initials fallback — same visual convention as
-/// ChatPreviewModel.avatarColor / ChatScreen's _ConversationHeader.
-class ProfileAvatar extends StatelessWidget {
-  final String? imageUrl;
-  final String initials;
-  final double radius;
-  const ProfileAvatar({super.key, required this.imageUrl, required this.initials, this.radius = 44});
-
-  @override
-  Widget build(BuildContext context) {
-    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: AppColors.primary,
-      backgroundImage: hasImage ? NetworkImage(imageUrl!) : null,
-      child: hasImage
-          ? null
-          : Text(
-        initials,
-        style: GoogleFonts.poppins(
-          fontSize: radius * 0.55, fontWeight: FontWeight.w700, color: Colors.white,
-        ),
-      ),
-    );
-  }
-}

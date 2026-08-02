@@ -8,6 +8,7 @@ import '../../models/chat_model.dart';
 import '../../services/chat_socket_service.dart';
 import '../../widgets/message_bubble.dart';
 import '../../core/routes/app_routes.dart';
+import '../../widgets/user_avatar.dart';
 
 /// The 1:1 conversation screen.
 ///
@@ -243,17 +244,6 @@ class _ConversationHeader extends StatelessWidget {
   final ChatSocketStatus socketStatus;
   const _ConversationHeader({required this.args, required this.socketStatus});
 
-  String get _initials {
-    final parts = args.otherUserFullName
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((p) => p.isNotEmpty)
-        .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
-  }
-
   Color get _avatarColor {
     const palette = [
       Color(0xFFC0392B), Color(0xFF2E6F95), Color(0xFF7A4FB5),
@@ -279,25 +269,15 @@ class _ConversationHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = args.otherUserProfileImage != null && args.otherUserProfileImage!.isNotEmpty;
     final status = _statusLabel;
 
     return Row(
       children: [
-        CircleAvatar(
+        UserAvatar(
+          imageUrl: args.otherUserProfileImage,
+          fullName: args.otherUserFullName,
           radius: 19,
           backgroundColor: _avatarColor,
-          backgroundImage: hasImage ? NetworkImage(args.otherUserProfileImage!) : null,
-          child: hasImage
-              ? null
-              : Text(
-            _initials,
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
         ),
         const SizedBox(width: 10),
         Column(
@@ -315,11 +295,7 @@ class _ConversationHeader extends StatelessWidget {
             if (status != null)
               Text(
                 status,
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
-                ),
+                style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary),
               ),
           ],
         ),

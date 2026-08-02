@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from .serializer_mixins import ProfileImageMixin
 from .models import (
     Interest,
     GENDER_CHOICES,
@@ -125,10 +126,12 @@ class SaveInterestsSerializer(serializers.Serializer):
 # USER DETAIL (me endpoint)
 # ─────────────────────────────────────────────
 
-class UserDetailSerializer(serializers.ModelSerializer):
+class UserDetailSerializer(ProfileImageMixin, serializers.ModelSerializer):
     interests = InterestSerializer(many=True, read_only=True)
-    # many=True tells DRF this is a list of related objects (ManyToMany).
-    # read_only=True means this field is for output only.
+    profile_image = serializers.SerializerMethodField()
+
+    def get_profile_image(self, obj):
+        return self.build_profile_image_url(obj)
 
     class Meta:
         model = CustomUser
@@ -136,13 +139,14 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "id",
             "full_name",
             "email",
+            "profile_image",
             "is_email_verified",
             "latitude",
             "longitude",
             "gender",
             "interests",
             "is_onboarding_complete",
-]
+        ]
 
 class UserSearchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -158,19 +162,23 @@ class UserSearchSerializer(serializers.ModelSerializer):
 # PUBLIC PROFILE (Your Tribe Status / Other User Profile)
 # ─────────────────────────────────────────────
 
-class PublicUserProfileSerializer(serializers.ModelSerializer):
+class PublicUserProfileSerializer(ProfileImageMixin, serializers.ModelSerializer):
     """
     Shared "core person" shape used both for the authenticated user's own
     Tribe Status page and for viewing someone else's profile. Only ever
     exposes information that's safe to show publicly.
     """
     interests = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
 
     def get_interests(self, obj):
         return list(obj.interests.values_list("name", flat=True))
 
+    def get_profile_image(self, obj):
+        return self.build_profile_image_url(obj)
+
     class Meta:
-        model = CustomUser
+        model = User
         fields = [
             "id",
             "full_name",
@@ -188,10 +196,14 @@ class PublicUserProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
-    """PATCH /api/users/me/update/ — used by the Profile Settings screen."""
+    """
+    PATCH /api/users/me/update/ — used by the Profile Settings screen.
+    Profile *photo* is handled separately by ProfileImageUploadView
+    (multipart upload), so it's intentionally excluded here.
+    """
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = [
             "username",
             "bio",
@@ -199,7 +211,6 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             "occupation",
             "university",
             "location",
-            "profile_image",
         ]
 
     def validate_username(self, value):

@@ -1,12 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/profile_controller.dart';
+import '../../controllers/current_user_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
+import '../../models/profile_model.dart';
 import '../../widgets/profile/profile_shared_widgets.dart';
+import '../../widgets/user_avatar.dart';
 
 /// FEATURE 1 — "Your Tribe Status"
 /// Opened from the Home page profile avatar. Matches the existing Tribal
@@ -96,7 +101,42 @@ class _TribeStatusView extends StatelessWidget {
           // ── Profile section ────────────────────────────────────────────
           Row(
             children: [
-              ProfileAvatar(imageUrl: status.profile.profileImage, initials: status.profile.initials, radius: 38),
+              GestureDetector(
+                onTap: () => _showPhotoOptionsSheet(context, ctrl, status.profile),
+                child: Hero(
+                  tag: 'my-avatar',
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      UserAvatar.me(radius: 38),
+                      if (ctrl.isUploadingImage)
+                        Container(
+                          width: 76,
+                          height: 76,
+                          decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 22, height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        bottom: -2, right: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.background, width: 2),
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -138,11 +178,11 @@ class _TribeStatusView extends StatelessWidget {
             mainAxisSpacing: 12,
             childAspectRatio: 1.2,
             children: [
-              TribeStatTile(icon: Icons.groups_rounded, label: 'Activities \n Joined', value: status.stats.activitiesJoined),
-              TribeStatTile(icon: Icons.campaign_rounded, label: 'Events \n Hosted', value: status.stats.eventsHosted),
-              TribeStatTile(icon: Icons.home_work_rounded, label: 'Roommate \n Matches', value: status.stats.roommateMatches),
-              TribeStatTile(icon: Icons.diversity_3_rounded, label: 'People \n Met', value: status.stats.peopleMet),
-              TribeStatTile(icon: Icons.local_fire_department_rounded, label: 'Chat Streak', value: status.stats.chatStreak),
+              TribeStatTile(icon: Icons.groups_rounded, label: 'Activities\nJoined', value: status.stats.activitiesJoined),
+              TribeStatTile(icon: Icons.campaign_rounded, label: 'Events\nHosted', value: status.stats.eventsHosted),
+              TribeStatTile(icon: Icons.home_work_rounded, label: 'Roommate\nMatches', value: status.stats.roommateMatches),
+              TribeStatTile(icon: Icons.diversity_3_rounded, label: 'People\nMet', value: status.stats.peopleMet),
+              TribeStatTile(icon: Icons.local_fire_department_rounded, label: 'Chat\nStreak', value: status.stats.chatStreak),
             ],
           ),
 
@@ -161,9 +201,6 @@ class _TribeStatusView extends StatelessWidget {
               title: 'No upcoming activities yet',
               subtitle: 'Find something your tribe is doing this week.',
               actionLabel: 'Explore Activities',
-              // The dedicated "Explore" tab isn't built yet (see
-              // TribalBottomNav) — this routes to the closest
-              // implemented equivalent instead of a dead link.
               onAction: () => context.push(AppRoutes.seeAllActivities),
             ),
           ),
@@ -194,6 +231,119 @@ class _TribeStatusView extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Bottom sheet opened by tapping the avatar — Take Photo / Choose From
+/// Gallery / Remove Photo (only if a photo exists) / Cancel. Matches the
+/// same rounded-sheet style already used by ChatScreen's menu sheet.
+void _showPhotoOptionsSheet(BuildContext context, ProfileController ctrl, ProfileCore profile) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: AppColors.background,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(4)),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.camera_alt_outlined, color: AppColors.textPrimary),
+            title: Text('Take Photo', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              _pickAndUpload(context, ctrl, ImageSource.camera);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined, color: AppColors.textPrimary),
+            title: Text('Choose From Gallery', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              _pickAndUpload(context, ctrl, ImageSource.gallery);
+            },
+          ),
+          if (profile.profileImage != null)
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+              title: Text('Remove Photo',
+                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.redAccent)),
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                final ok = await ctrl.removeProfileImage();
+                if (!context.mounted) return;
+                if (ok) {
+                  context.read<CurrentUserController>().updateProfile(
+                    fullName: profile.fullName,
+                    profileImage: null,
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(ctrl.error ?? 'Could not remove photo.')),
+                  );
+                }
+              },
+            ),
+          ListTile(
+            leading: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+            title: Text('Cancel',
+                style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+            onTap: () => Navigator.of(sheetContext).pop(),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Take Photo / Choose From Gallery -> pick -> upload -> refresh Tribe
+/// Status in place. On failure, shows a snackbar with a Retry action that
+/// re-runs the exact same pick (per the "Retry should work" requirement).
+Future<void> _pickAndUpload(BuildContext context, ProfileController ctrl, ImageSource source) async {
+  final picker = ImagePicker();
+  XFile? picked;
+  try {
+    picked = await picker.pickImage(source: source, imageQuality: 85, maxWidth: 1600);
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(source == ImageSource.camera
+            ? 'Could not access the camera.'
+            : 'Could not access the gallery.'),
+      ),
+    );
+    return;
+  }
+
+  if (picked == null) return; // user cancelled the picker — no-op
+
+  final ok = await ctrl.uploadProfileImage(File(picked.path));
+  if (!context.mounted) return;
+  if (ok) {
+    final updated = ctrl.tribeStatus?.profile;
+    if (updated != null) {
+      context.read<CurrentUserController>().updateProfile(
+        fullName: updated.fullName,
+        profileImage: updated.profileImage,
+      );
+    }
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ctrl.error ?? 'Could not upload photo.'),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: () => _pickAndUpload(context, ctrl, source),
+        ),
       ),
     );
   }

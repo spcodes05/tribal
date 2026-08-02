@@ -49,5 +49,7 @@
 	<string>TRIBAL uses your location to show nearby activities and improve recommendations.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>TRIBAL uses your location to show nearby activities and improve recommendations.</string>
+	<key>GOOGLE_MAPS_API_KEY</key>
+    <string>$(GOOGLE_MAPS_API_KEY)</string>
 </dict>
 </plist>

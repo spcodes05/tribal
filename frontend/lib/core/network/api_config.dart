@@ -9,7 +9,9 @@
 class ApiConfig {
   ApiConfig._();
 
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+
+  static const String baseUrl = 'http://192.168.254.195:8000/api';
+
 
   // ── Users endpoints (apps/users/urls.py) ──────────────────────────────────
   static const String register = '/users/register/';
@@ -25,13 +27,16 @@ class ApiConfig {
 
   static const String meTribeStatus = '/users/me/tribe-status/';
   static const String meUpdateProfile = '/users/me/update/';
+  static const String meProfileImage = '/users/me/profile-image/';
   static String publicProfile(int userId) => '/users/$userId/profile/';
   static String blockUser(int userId) => '/users/$userId/block/';
   static String reportUser(int userId) => '/users/$userId/report/';
+  static String mutualActivities(int userId) => '/users/$userId/mutual-activities/';
 
   // ── Events endpoints (apps/events/urls.py) ───────────────────────────────
   static const String homeFeed = '/events/home/';
   static const String activities = '/events/activities/';
+  static const String activitiesMap = '/events/activities/map/';
   static String activityDetail(int id) => '/events/activities/$id/';
   static String joinActivity(int id) => '/events/activities/$id/join/';
   static const String notifications = '/events/notifications/';
@@ -43,10 +48,12 @@ class ApiConfig {
   static const String roommateFind = '/roommate/find/';
   static const String roommateMatchesRefresh = '/roommate/matches/refresh/';
 
-  // ── Chat endpoints (apps/chat/urls.py) ─────────────────────────────────
+
+
+// ── Chat endpoints (apps/chat/urls.py) ─────────────────────────────────
   static const String chatList = '/chat/';
-  static String chatMessages(int chatId) => '/chat/$chatId/';
   static const String chatStart = '/chat/start/';
+  static String chatMessages(int chatId) => '/chat/$chatId/';
   static String chatSend(int chatId) => '/chat/$chatId/send/';
   static String messageRead(int messageId) => '/chat/message/$messageId/read/';
   static String messageDelete(int messageId) => '/chat/message/$messageId/';

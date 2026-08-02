@@ -39,32 +39,26 @@ class UserModel {
     this.location,
   });
 
-  /// Creates a UserModel from a JSON map.
-  ///
-  /// Handles both response shapes:
-  ///   - Register/Login: {"id":.., "full_name":.., "email":.., "is_email_verified":..}
-  ///   - Me (full detail): adds "gender", "interests": [{"id":.., "name":..}], "is_onboarding_complete"
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    String? nonEmpty(String? v) => (v != null && v.trim().isNotEmpty) ? v : null;
     return UserModel(
       id: json['id'].toString(),
       fullName: json['full_name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       gender: json['gender'] as String?,
       interests: (json['interests'] as List<dynamic>?)
-              ?.map((e) => e is Map ? e['name'].toString() : e.toString())
-              .toList() ??
+          ?.map((e) => e is Map ? e['name'].toString() : e.toString())
+          .toList() ??
           const [],
       isEmailVerified: json['is_email_verified'] as bool? ?? false,
       isOnboardingComplete: json['is_onboarding_complete'] as bool? ?? false,
-      username: json['username'] as String?,
-      profileImage: (json['profile_image'] as String?)?.isNotEmpty == true
-          ? json['profile_image'] as String
-          : null,
-      bio: json['bio'] as String?,
+      username: nonEmpty(json['username'] as String?),
+      profileImage: nonEmpty(json['profile_image'] as String?),
+      bio: nonEmpty(json['bio'] as String?),
       age: json['age'] as int?,
-      occupation: json['occupation'] as String?,
-      university: json['university'] as String?,
-      location: json['location'] as String?,
+      occupation: nonEmpty(json['occupation'] as String?),
+      university: nonEmpty(json['university'] as String?),
+      location: nonEmpty(json['location'] as String?),
     );
   }
 

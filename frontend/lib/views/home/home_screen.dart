@@ -8,6 +8,8 @@ import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
 import '../../models/profile_model.dart';
 import '../../services/location_service.dart';
+import '../../controllers/current_user_controller.dart';
+import '../../widgets/user_avatar.dart';
 import '../../widgets/tribal_bottom_nav.dart';
 import '../../widgets/safety_feature_button.dart';
 
@@ -27,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // engine can compute LocationScore for activities and people.
       LocationService.instance.requestAndSave();
       context.read<HomeController>().loadHomeFeed();
+      context.read<CurrentUserController>().load();
     });
   }
 
@@ -140,10 +143,9 @@ class _GreetingHeader extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: () => context.push(AppRoutes.tribeStatus),
-            child: const CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.surface,
-              child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 26),
+            child: Hero(
+              tag: 'my-avatar',
+              child: UserAvatar.me(radius: 24),
             ),
           ),
           const SizedBox(width: 12),
@@ -305,7 +307,7 @@ class _PeopleList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 168,
+      height: 200,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -338,17 +340,14 @@ class _PersonCard extends StatelessWidget {
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.surface,
-                  child: Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 30),
-                ),
+                UserAvatar(imageUrl: person.profileImage, fullName: person.fullName, radius: 30),
                 Positioned(
                   bottom: -10,
                   child: Container(
@@ -368,7 +367,9 @@ class _PersonCard extends StatelessWidget {
                 style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
-            Wrap(
+            SizedBox(
+              height: 44,
+            child: Wrap(
               spacing: 4, runSpacing: 4, alignment: WrapAlignment.center,
               children: person.interests.take(2)
                   .map((i) => Container(
@@ -379,6 +380,7 @@ class _PersonCard extends StatelessWidget {
               ))
                   .toList(),
             ),
+            )
           ],
         ),
       ),
