@@ -86,12 +86,11 @@ class LocationService {
 
       await _dio.post(
         ApiConfig.userLocation,
-        data: {'latitude': double.parse(lat.toStringAsFixed(8)),
-<<<<<<< HEAD
-        'longitude': double.parse(lon.toStringAsFixed(8)),
-=======
-          'longitude': double.parse(lon.toStringAsFixed(8)),
->>>>>>> 693651e (Implement live location sharing and SOS trusted contact alerts)
+        data: {'latitude': double.parse(lat.toStringAsFixed(15)),
+
+        'longitude': double.parse(lon.toStringAsFixed(15)),
+
+
         },
       );
     } on DioException catch (_) {
