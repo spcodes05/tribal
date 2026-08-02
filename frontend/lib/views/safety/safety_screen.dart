@@ -25,17 +25,17 @@ class _SafetyScreenState extends State<SafetyScreen> {
   bool _isLocationSharing = false;
   List<Map<String, dynamic>> _trustedContacts = [];
   int get _trustedContactsCount => _trustedContacts.length;
-  Timer? _locationTimer;
+
 
   @override
   void initState() {
     super.initState();
+    _isLocationSharing = LocationService.instance.isLocationSharing;
     _fetchTrustedContacts();
   }
 
   @override
   void dispose() {
-    _locationTimer?.cancel();
     super.dispose();
   }
 
@@ -49,18 +49,15 @@ class _SafetyScreenState extends State<SafetyScreen> {
   }
 
   void _toggleLocationSharing(bool value) {
-    setState(() => _isLocationSharing = value);
     if (value) {
-      LocationService.instance.requestAndSave();
-      _locationTimer = Timer.periodic(
-        const Duration(minutes: 2),
-            (_) => LocationService.instance.requestAndSave(),
-      );
+      LocationService.instance.startLocationSharing();
     } else {
-      _locationTimer?.cancel();
-      _locationTimer = null;
+      LocationService.instance.stopLocationSharing();
     }
+    setState(() => _isLocationSharing = LocationService.instance.isLocationSharing);
   }
+
+
 
   Future<void> _handleSOS() async {
     if (_isActivating) return;
@@ -73,21 +70,17 @@ class _SafetyScreenState extends State<SafetyScreen> {
       final response = await ApiClient.instance.dio.post(ApiConfig.sosActivate);
       if (!mounted) return;
 
-      if (_locationTimer == null) {
-        LocationService.instance.requestAndSave();
-        _locationTimer = Timer.periodic(
-          const Duration(minutes: 2),
-              (_) => LocationService.instance.requestAndSave(),
-        );
-      }
-
       final message = (response.data is Map && response.data['message'] != null)
+          ? response.data['message'] as String
+          : 'SOS activated. Your trusted contacts have been notified.';
+
+      final sosmessage = (response.data is Map && response.data['message'] != null)
           ? response.data['message'] as String
           : 'SOS activated. Your trusted contacts have been notified.';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(sosmessage),
           backgroundColor: const Color(0xFF2E7D32),
         ),
       );
@@ -412,64 +405,7 @@ class _SafetyScreenState extends State<SafetyScreen> {
 
               const SizedBox(height: 16),
 
-              // ---------------- CHECK-IN / CHECK-OUT ----------------
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.access_time, color: Colors.black87),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Check-In / Check-Out',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.green,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Checked in: Shivapuri Trek 2h ago',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: Colors.black45,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: Colors.black38),
-                  ],
-                ),
-              ),
+
 
               if (_isLocationSharing) ...[
                 const SizedBox(height: 16),

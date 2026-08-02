@@ -25,7 +25,7 @@ class ApiConfig {
   static const String interests = '/users/interests/';
   static const String me = '/users/me/';
 
-  static const String userLocation = '/users/location/';
+  static const String userLocation = '/safety/location/';
   static const String interestsList = '/users/interests/';
 
   static const String meTribeStatus = '/users/me/tribe-status/';
