@@ -46,6 +46,7 @@ import '../../views/safety/trusted_contacts_screen.dart';
 import '../../views/profile/tribe_status_screen.dart';
 import '../../views/profile/other_user_profile_screen.dart';
 import '../../views/profile/profile_settings_screen.dart';
+import '../../views/profile/mutual_activities_screen.dart';
 import '../../models/profile_model.dart';
 
 
@@ -102,10 +103,17 @@ class AppRoutes {
   static const String tribeStatus = '/tribe-status';
   static const String profileSettings = '/tribe-status/settings';
   static const String otherUserProfile = '/profile/:id';
+  static const String mutualActivities = '/profile/:id/mutual-activities';
 
   static String otherUserProfilePath(int userId) =>
       otherUserProfile.replaceFirst(':id', userId.toString());
 
+  /// Builds the concrete path for [mutualActivities], e.g.
+  /// mutualActivitiesPath(42) -> '/profile/42/mutual-activities'.
+  static String mutualActivitiesPath(int userId) =>
+      mutualActivities.replaceFirst(':id', userId.toString());
+
+  /// The root GoRouter instance.
   static final GoRouter router = GoRouter(
     initialLocation: onboarding,
     debugLogDiagnostics: false,
@@ -223,6 +231,17 @@ class AppRoutes {
           return OtherUserProfileScreen(userId: userId, navArgs: args);
         },
       ),
+
+      GoRoute(
+        path: mutualActivities,
+        name: 'mutualActivities',
+        builder: (_, state) {
+          final userId = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return MutualActivitiesScreen(userId: userId);
+        },
+      ),
+
+
 
       // -- Profile Completion Flow --------------------------------------
       // Wrapped in a single ChangeNotifierProvider so ProfileSetupController

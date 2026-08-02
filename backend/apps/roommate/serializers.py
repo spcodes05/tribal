@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.users.models import Interest
+from apps.users.serializer_mixins import ProfileImageMixin
 
 from .models import (
     DrinkingPreference,
@@ -127,12 +128,16 @@ class RoommateProfileSerializer(serializers.ModelSerializer):
         return value
 
 
-class RoommateProfileSummarySerializer(serializers.ModelSerializer):
+class RoommateProfileSummarySerializer(ProfileImageMixin, serializers.ModelSerializer):
     interest_details = InterestSerializer(
         source="interests", many=True, read_only=True
     )
     user_email = serializers.EmailField(source="user.email", read_only=True)
     user_full_name = serializers.CharField(source="user.full_name", read_only=True)
+    user_profile_image = serializers.SerializerMethodField()
+
+    def get_user_profile_image(self, obj):
+        return self.build_profile_image_url(obj.user)
 
     class Meta:
         model = RoommateProfile
@@ -141,6 +146,7 @@ class RoommateProfileSummarySerializer(serializers.ModelSerializer):
             "user",
             "user_email",
             "user_full_name",
+            "user_profile_image",
             "budget_min",
             "budget_max",
             "sleep_schedule",

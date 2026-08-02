@@ -8,6 +8,7 @@ import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
 import '../../models/profile_model.dart';
 import '../../widgets/tribal_bottom_nav.dart';
+import '../../widgets/user_avatar.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -240,11 +241,7 @@ class _PersonResultTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.divider,
-              child: Icon(Icons.person_rounded, color: Colors.white, size: 24),
-            ),
+            UserAvatar(imageUrl: person.profileImage, fullName: person.fullName, radius: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

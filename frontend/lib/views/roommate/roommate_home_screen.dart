@@ -182,6 +182,7 @@ class _RoommateHomeScreenState extends State<RoommateHomeScreen> {
         for (final match in ctrl.matches) ...[
           RoommateMatchCard(
             name: match.displayName,
+            profileImage: match.profile.userProfileImage,
             tags: match.displayTags,
             compatibility: match.score,
             dealBreaker: match.dealBreaker,

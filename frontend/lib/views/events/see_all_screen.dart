@@ -8,6 +8,7 @@ import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
 import '../../models/profile_model.dart';
 import '../../widgets/tribal_bottom_nav.dart';
+import '../../widgets/user_avatar.dart';
 
 /// Shared "See All" screen — shows either all activities or all people
 /// depending on the [mode] arg passed via GoRouter extra.
@@ -269,12 +270,7 @@ class _PersonGridCard extends StatelessWidget {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: AppColors.surface,
-                  child: Icon(Icons.person_outline_rounded,
-                      color: AppColors.textSecondary, size: 30),
-                ),
+                UserAvatar(imageUrl: person.profileImage, fullName: person.fullName, radius: 30),
                 Positioned(
                   bottom: -10,
                   child: Container(

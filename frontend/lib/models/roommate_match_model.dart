@@ -12,6 +12,7 @@ class RoommateProfileSummary {
   final int userId;
   final String? userEmail;
   final String? userFullName;
+  final String? userProfileImage;
   final int budgetMin;
   final int budgetMax;
   final String sleepScheduleRaw;
@@ -32,6 +33,7 @@ class RoommateProfileSummary {
     required this.userId,
     this.userEmail,
     this.userFullName,
+    this.userProfileImage,
     required this.budgetMin,
     required this.budgetMax,
     required this.sleepScheduleRaw,
@@ -54,6 +56,9 @@ class RoommateProfileSummary {
       userId: json['user'] as int,
       userEmail: json['user_email'] as String?,
       userFullName: json['user_full_name'] as String?,
+      userProfileImage: (json['user_profile_image'] as String?)?.isNotEmpty == true
+          ? json['user_profile_image'] as String
+          : null,
       budgetMin: json['budget_min'] as int,
       budgetMax: json['budget_max'] as int,
       sleepScheduleRaw: json['sleep_schedule'] as String? ?? '',

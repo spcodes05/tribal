@@ -6,6 +6,7 @@ import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/activity_model.dart';
 import '../../widgets/tribal_bottom_nav.dart';
+import '../../widgets/user_avatar.dart';
 
 class ActivityDetailScreen extends StatefulWidget {
   final int activityId;
@@ -337,11 +338,7 @@ class _HostCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 22,
-            backgroundColor: AppColors.divider,
-            child: Icon(Icons.person_rounded, color: AppColors.textSecondary, size: 24),
-          ),
+          UserAvatar(imageUrl: host.profileImage, fullName: host.fullName, radius: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -404,10 +401,10 @@ class _MembersRow extends StatelessWidget {
               for (int i = 0; i < shown; i++)
                 Positioned(
                   left: i * 22.0,
-                  child: CircleAvatar(
+                  child: UserAvatar(
+                    imageUrl: activity.recentMembers[i].profileImage,
+                    fullName: activity.recentMembers[i].fullName,
                     radius: 15,
-                    backgroundColor: Colors.grey[300 + (i * 100 > 300 ? 300 : i * 100)],
-                    child: const Icon(Icons.person_rounded, color: Colors.white, size: 14),
                   ),
                 ),
               if (extra > 0)

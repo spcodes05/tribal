@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'controllers/home_controller.dart';
 import 'controllers/auth_controller.dart';
+import 'controllers/current_user_controller.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
 
@@ -49,6 +50,13 @@ class TribalApp extends StatelessWidget {
         // (keeps feed data, notification count, etc. without re-fetching
         // every time the user navigates back to home).
         ChangeNotifierProvider(create: (_) => HomeController()),
+        // Single source of truth for the logged-in user's own avatar
+        // (name + photo). Every UserAvatar.me() in the app watches this
+        // same instance, so uploading/removing a photo on Tribe Status
+        // updates every "my avatar" on screen immediately, everywhere,
+        // with no per-screen wiring. Eager-loads here; also re-loaded
+        // from HomeScreen.initState() once the user is authenticated.
+        ChangeNotifierProvider(create: (_) => CurrentUserController()..load()),
       ],
       child: MaterialApp.router(
         title: 'TRIBAL',

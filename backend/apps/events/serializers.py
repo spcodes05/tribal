@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from apps.users.serializer_mixins import ProfileImageMixin
 from .models import Activity, ActivityMember, Notification
 
 User = get_user_model()
@@ -7,21 +8,30 @@ User = get_user_model()
 
 # ── Nested host summary used inside ActivitySerializer ───────────────────────
 
-class HostSerializer(serializers.ModelSerializer):
+class HostSerializer(ProfileImageMixin, serializers.ModelSerializer):
+    profile_image = serializers.SerializerMethodField()
+
+    def get_profile_image(self, obj):
+        return self.build_profile_image_url(obj)
+
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'is_email_verified']
+        fields = ['id', 'full_name', 'is_email_verified', 'profile_image']
 
 
 # ── Member summary (stacked avatars on card) ─────────────────────────────────
 
-class MemberSerializer(serializers.ModelSerializer):
+class MemberSerializer(ProfileImageMixin, serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id', read_only=True)
     full_name = serializers.CharField(source='user.full_name', read_only=True)
+    profile_image = serializers.SerializerMethodField()
+
+    def get_profile_image(self, obj):
+        return self.build_profile_image_url(obj.user)
 
     class Meta:
         model = ActivityMember
-        fields = ['user_id', 'full_name', 'joined_at']
+        fields = ['user_id', 'full_name', 'profile_image', 'joined_at']
 
 
 # ── Activity list card (compact, for home screen) ─────────────────────────────
@@ -106,7 +116,7 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
     def get_recent_members(self, obj):
         # Return up to 4 members for the stacked avatar display
         recent = obj.members.select_related('user').order_by('joined_at')[:4]
-        return MemberSerializer(recent, many=True).data
+        return MemberSerializer(recent, many=True, context=self.context).data
 
     def get_has_joined(self, obj):
         request = self.context.get('request')
@@ -201,10 +211,11 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 # ── People match (home screen) ────────────────────────────────────────────────
 
-class PeopleMatchSerializer(serializers.ModelSerializer):
+class PeopleMatchSerializer(ProfileImageMixin, serializers.ModelSerializer):
     """Compact user card for 'People You Might Vibe With'."""
     interests = serializers.SerializerMethodField()
     match_percent = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
 
     def get_interests(self, obj):
         return list(obj.interests.values_list('name', flat=True))
@@ -212,6 +223,9 @@ class PeopleMatchSerializer(serializers.ModelSerializer):
     def get_match_percent(self, obj):
         return self.context.get('match_percents', {}).get(obj.id)
 
+    def get_profile_image(self, obj):
+        return self.build_profile_image_url(obj)
+
     class Meta:
         model = User
-        fields = ['id', 'full_name', 'gender', 'interests', 'match_percent']
+        fields = ['id', 'full_name', 'gender', 'interests', 'match_percent', 'profile_image']

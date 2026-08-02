@@ -9,6 +9,7 @@ import '../../models/chat_model.dart';
 import '../../models/profile_model.dart';
 import '../../services/chat_service.dart';
 import '../../widgets/profile/profile_shared_widgets.dart';
+import '../../widgets/user_avatar.dart';
 
 /// FEATURE 2 — "Other User Profile"
 /// One reusable screen opened from: "People You Might Vibe With" cards,
@@ -216,7 +217,7 @@ class _OtherUserProfileViewState extends State<_OtherUserProfileView> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             children: [
-              Center(child: ProfileAvatar(imageUrl: core.profileImage, initials: core.initials, radius: 48)),
+              Center(child: UserAvatar(imageUrl: core.profileImage, fullName: core.fullName, radius: 48)),
               const SizedBox(height: 14),
               Center(
                 child: Text(
@@ -351,17 +352,7 @@ class _OtherUserProfileViewState extends State<_OtherUserProfileView> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  // No "mutual activities" list endpoint exists yet on the
-                  // backend (only a public recent-events list, shown above
-                  // under Tribe Activity) — follows the same "coming soon"
-                  // convention TribalBottomNav already uses for the Explore
-                  // tab, instead of routing to a broken/empty screen.
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Mutual activities view is coming soon!'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  ),
+                      onPressed: () => context.push(AppRoutes.mutualActivitiesPath(widget.userId)),
                   icon: const Icon(Icons.event_note_rounded, size: 18, color: AppColors.primary),
                   label: Text('View Mutual Activities',
                       style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.primary)),

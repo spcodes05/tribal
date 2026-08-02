@@ -4,30 +4,39 @@ class ActivityHost {
   final int id;
   final String fullName;
   final bool isVerified;
+  final String? profileImage;
 
   const ActivityHost({
     required this.id,
     required this.fullName,
     required this.isVerified,
+    this.profileImage,
   });
 
   factory ActivityHost.fromJson(Map<String, dynamic> json) => ActivityHost(
     id: json['id'] as int,
     fullName: json['full_name'] as String? ?? '',
     isVerified: json['is_email_verified'] as bool? ?? false,
+    profileImage: (json['profile_image'] as String?)?.isNotEmpty == true
+        ? json['profile_image'] as String
+        : null,
   );
 }
 
 class ActivityMemberModel {
   final int userId;
   final String fullName;
+  final String? profileImage;
 
-  const ActivityMemberModel({required this.userId, required this.fullName});
+  const ActivityMemberModel({required this.userId, required this.fullName, this.profileImage});
 
   factory ActivityMemberModel.fromJson(Map<String, dynamic> json) =>
       ActivityMemberModel(
         userId: json['user_id'] as int,
         fullName: json['full_name'] as String? ?? '',
+        profileImage: (json['profile_image'] as String?)?.isNotEmpty == true
+            ? json['profile_image'] as String
+            : null,
       );
 }
 
@@ -204,6 +213,7 @@ class PersonMatchModel {
   final String? gender;
   final List<String> interests;
   final int? matchPercent;
+  final String? profileImage;
 
   const PersonMatchModel({
     required this.id,
@@ -211,6 +221,7 @@ class PersonMatchModel {
     this.gender,
     required this.interests,
     this.matchPercent,
+    this.profileImage,
   });
 
   factory PersonMatchModel.fromJson(Map<String, dynamic> json) =>
@@ -218,6 +229,9 @@ class PersonMatchModel {
         id: json['id'] as int,
         fullName: json['full_name'] as String? ?? '',
         gender: json['gender'] as String?,
+        profileImage: (json['profile_image'] as String?)?.isNotEmpty == true
+            ? json['profile_image'] as String
+            : null,
         interests: (json['interests'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .toList() ??

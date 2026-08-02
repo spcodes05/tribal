@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../core/network/api_client.dart';
 import '../models/activity_model.dart';
@@ -38,6 +39,59 @@ class ProfileController extends ChangeNotifier {
       _status = ProfileStatus.error;
     } finally {
       notifyListeners();
+    }
+  }
+
+  bool _isUploadingImage = false;
+  bool get isUploadingImage => _isUploadingImage;
+
+  void _replaceTribeStatusProfile(ProfileCore updated) {
+    if (_tribeStatus == null) return;
+    _tribeStatus = TribeStatusModel(
+      profile: updated,
+      stats: _tribeStatus!.stats,
+      upcomingActivityJson: _tribeStatus!.upcomingActivityJson,
+      recentTimeline: _tribeStatus!.recentTimeline,
+      achievements: _tribeStatus!.achievements,
+    );
+  }
+
+  /// Uploads a new profile photo (Take Photo / Choose From Gallery) and
+  /// swaps it into [tribeStatus] immediately — no screen refresh needed.
+  Future<bool> uploadProfileImage(File imageFile) async {
+    _isUploadingImage = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final updated = await ProfileService.instance.uploadProfileImage(imageFile);
+      _replaceTribeStatusProfile(updated);
+      _isUploadingImage = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isUploadingImage = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// "Remove Photo" — clears the photo and reverts to initials.
+  Future<bool> removeProfileImage() async {
+    _isUploadingImage = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final updated = await ProfileService.instance.removeProfileImage();
+      _replaceTribeStatusProfile(updated);
+      _isUploadingImage = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isUploadingImage = false;
+      notifyListeners();
+      return false;
     }
   }
 
@@ -130,6 +184,25 @@ class ProfileController extends ChangeNotifier {
       _isSaving = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  // ── Mutual Activities ────────────────────────────────────────────────────
+  List<ActivityCardModel>? _mutualActivities;
+  List<ActivityCardModel>? get mutualActivities => _mutualActivities;
+
+  Future<void> loadMutualActivities(int userId) async {
+    _status = ProfileStatus.loading;
+    _error = null;
+    notifyListeners();
+    try {
+      _mutualActivities = await ProfileService.instance.getMutualActivities(userId);
+      _status = ProfileStatus.success;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _status = ProfileStatus.error;
+    } finally {
+      notifyListeners();
     }
   }
 }

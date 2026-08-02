@@ -416,7 +416,7 @@ class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = UserDetailSerializer(request.user)
+        serializer = UserDetailSerializer(request.user,context={"request": request},)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @api_view(["POST"])
@@ -521,6 +521,113 @@ class LocationView(APIView):
             'latitude': lat,
             'longitude': lon,
         })
+
+# ─────────────────────────────────────────────
+# PROFILE IMAGE UPLOAD (Tribe Status — tap avatar)
+# ─────────────────────────────────────────────
+
+class ProfileImageUploadView(APIView):
+    """
+    POST   /api/users/me/profile-image/   multipart field name "image"
+    DELETE /api/users/me/profile-image/   removes the current photo
+    """
+    permission_classes = [IsAuthenticated]
+
+    ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+    MAX_SIZE_BYTES = 8 * 1024 * 1024  # 8MB
+
+    def post(self, request):
+        image_file = request.FILES.get("image")
+        if not image_file:
+            return Response({"detail": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if image_file.content_type not in self.ALLOWED_CONTENT_TYPES:
+            return Response(
+                {"detail": "Please upload a JPEG, PNG, or WEBP image."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if image_file.size > self.MAX_SIZE_BYTES:
+            return Response(
+                {"detail": "Image must be smaller than 8MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Capture the old file's storage path (not the FieldFile object)
+        # BEFORE reassigning, then delete it AFTER the new file is safely
+        # saved. Every upload gets a fresh UUID filename (see
+        # apps.users.models.profile_image_upload_path), so this ordering
+        # can never result in the new file colliding with the old URL.
+        old_name = request.user.profile_image.name if request.user.profile_image else None
+
+        request.user.profile_image = image_file
+        request.user.save(update_fields=["profile_image"])
+
+        if old_name:
+            request.user.profile_image.storage.delete(old_name)
+
+        return Response(PublicUserProfileSerializer(request.user, context={"request": request}).data)
+
+    def delete(self, request):
+        old_name = request.user.profile_image.name if request.user.profile_image else None
+        request.user.profile_image = ""
+        request.user.save(update_fields=["profile_image"])
+        if old_name:
+            request.user.profile_image.storage.delete(old_name)
+        return Response(PublicUserProfileSerializer(request.user, context={"request": request}).data)
+
+# ─────────────────────────────────────────────
+# MUTUAL ACTIVITIES
+# ─────────────────────────────────────────────
+
+class MutualActivitiesView(APIView):
+    """
+    GET /api/users/<user_id>/mutual-activities/
+
+    Activities that BOTH the requesting user and <user_id> have joined.
+    Reuses ActivityCardSerializer (same shape already used by the Home
+    feed and Tribe Status's upcoming activity), so the frontend needed
+    no new model at all.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        from apps.events.models import Activity, ActivityMember
+        from apps.events.serializers import ActivityCardSerializer
+        from apps.roommate.models import RoommateMatch
+
+        target = get_object_or_404(User, pk=user_id, is_active=True)
+
+        if UserBlock.objects.filter(blocker=target, blocked=request.user).exists():
+            return Response({"detail": "This profile is not available."}, status=status.HTTP_404_NOT_FOUND)
+
+        my_activity_ids = set(
+            ActivityMember.objects.filter(user=request.user).values_list("activity_id", flat=True)
+        )
+        their_activity_ids = set(
+            ActivityMember.objects.filter(user=target).values_list("activity_id", flat=True)
+        )
+        mutual_ids = my_activity_ids & their_activity_ids
+
+        activities = (
+            Activity.objects.filter(id__in=mutual_ids)
+            .select_related("host")
+            .order_by("-date", "-time")
+        )
+
+        # Real roommate compatibility if it exists — never fabricated.
+        match = (
+            RoommateMatch.objects.filter(
+                Q(user=request.user, matched_user=target) | Q(user=target, matched_user=request.user)
+            ).order_by("-updated_at").first()
+        )
+        compatibility = round(float(match.compatibility_score)) if match else None
+        match_percents = {a.id: compatibility for a in activities} if compatibility is not None else {}
+
+        serializer = ActivityCardSerializer(
+            activities, many=True,
+            context={"request": request, "match_percents": match_percents},
+        )
+        return Response({"activities": serializer.data})
 
 
 class UserSearchView(ListAPIView):
@@ -662,7 +769,7 @@ class TribeStatusView(APIView):
         ]
  
         return Response({
-            "profile": PublicUserProfileSerializer(user).data,
+            "profile": PublicUserProfileSerializer(user, context={"request": request}).data,
             "stats": stats,
             "upcoming_activity": upcoming_activity,
             "recent_timeline": timeline,
@@ -706,7 +813,7 @@ class UpdateProfileView(APIView):
         )
         if serializer.is_valid():
             serializer.save()
-            return Response(PublicUserProfileSerializer(request.user).data)
+            return Response(PublicUserProfileSerializer(request.user, context={"request": request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
  
  
@@ -761,7 +868,7 @@ class PublicProfileView(APIView):
         is_blocked_by_me = UserBlock.objects.filter(blocker=request.user, blocked=target).exists()
  
         return Response({
-            "profile": PublicUserProfileSerializer(target).data,
+            "profile": PublicUserProfileSerializer(target, context={"request": request}).data,
             "mutual_interests": mutual_interests,
             "compatibility_percent": compatibility_percent,
             "tribe_activity": {

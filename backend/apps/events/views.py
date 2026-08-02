@@ -90,7 +90,7 @@ class HomeFeedView(APIView):
         people_data = PeopleMatchSerializer(
             ordered_people,
             many=True,
-            context={'match_percents': people_match_percents},
+            context={'request': request, 'match_percents': people_match_percents},
         ).data
 
         # ── Unread notification count (bell badge) ───────────────────────────
@@ -311,7 +311,7 @@ class SearchView(APIView):
             ).data,
             'people': PeopleMatchSerializer(
                 ordered_people, many=True,
-                context={'match_percents': people_match, "recommendation_scores": recommendation_scores},
+                context={'request': request, 'match_percents': people_match, "recommendation_scores": recommendation_scores},
             ).data,
         })
 

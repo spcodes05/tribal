@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/constants/app_colors.dart';
 import '../models/chat_model.dart';
+import 'user_avatar.dart';
 
 /// A single row on the Chat List screen.
 ///
@@ -105,8 +106,9 @@ class ChatTile extends StatelessWidget {
 }
 
 // =============================================================================
-// Avatar — real profile image when the backend has one, gradient-ringed
-// initials fallback otherwise (`other_user_profile_image` is nullable).
+// Avatar — delegates entirely to the app-wide UserAvatar widget so chat
+// uses the exact same photo/initials/broken-URL handling as every other
+// screen (no duplicated avatar logic).
 // =============================================================================
 
 class _ChatAvatar extends StatelessWidget {
@@ -115,52 +117,11 @@ class _ChatAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const size = 54.0;
-    final hasImage =
-        chat.otherUserProfileImage != null && chat.otherUserProfileImage!.isNotEmpty;
-
-    return Container(
-      width: size,
-      height: size,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [chat.avatarColor.withOpacity(0.9), AppColors.primary],
-        ),
-      ),
-      child: ClipOval(
-        child: hasImage
-            ? Image.network(
-          chat.otherUserProfileImage!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _InitialsAvatar(chat: chat),
-        )
-            : _InitialsAvatar(chat: chat),
-      ),
-    );
-  }
-}
-
-class _InitialsAvatar extends StatelessWidget {
-  final ChatPreviewModel chat;
-  const _InitialsAvatar({required this.chat});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: chat.avatarColor,
-      alignment: Alignment.center,
-      child: Text(
-        chat.initials,
-        style: GoogleFonts.poppins(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
-      ),
+    return UserAvatar(
+      imageUrl: chat.otherUserProfileImage,
+      fullName: chat.otherUserFullName,
+      radius: 27,
+      backgroundColor: chat.avatarColor,
     );
   }
 }

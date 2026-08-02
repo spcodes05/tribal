@@ -109,7 +109,7 @@ class FindRoommatesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = RoommateMatchResultSerializer(matches, many=True)
+        serializer = RoommateMatchResultSerializer(matches, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -135,5 +135,5 @@ class RefreshRoommateMatchesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = RoommateMatchResultSerializer(matches, many=True)
+        serializer = RoommateMatchResultSerializer(matches, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
