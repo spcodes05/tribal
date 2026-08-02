@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'controllers/home_controller.dart';
 import 'controllers/auth_controller.dart';
@@ -8,6 +9,10 @@ import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables (API keys etc.) from .env file.
+  // The .env file is gitignored — see .env.example for required keys.
+  await dotenv.load(fileName: '.env');
 
   // Lock orientation to portrait for consistent mobile UX
   await SystemChrome.setPreferredOrientations([

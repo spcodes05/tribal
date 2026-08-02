@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/routes/app_routes.dart';
 import '../../services/events_service.dart';
+import '../../views/events/location_picker_screen.dart';
 import '../../widgets/custom_button.dart';
 
 class CreateActivityScreen extends StatefulWidget {
@@ -20,7 +22,6 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _locationController = TextEditingController();
   final _meetingPointController = TextEditingController();
   final _maxMembersController = TextEditingController(text: '20');
   final _imageUrlController = TextEditingController();
@@ -32,16 +33,54 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
   bool _isAccessible = false;
   bool _isFree = true;
 
+  // ── Picked location (from map picker) ─────────────────────────────────────
+  PickedLocation? _pickedLocation;
+
+  // ── Tag picker ────────────────────────────────────────────────────────────
+  List<Map<String, dynamic>> _availableInterests = [];
+  final Set<int> _selectedTagIds = {};
+  bool _loadingInterests = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInterests();
+  }
+
+  Future<void> _loadInterests() async {
+    try {
+      final interests = await EventsService.instance.fetchInterests();
+      setState(() {
+        _availableInterests = interests;
+        _loadingInterests = false;
+      });
+    } catch (_) {
+      setState(() => _loadingInterests = false);
+    }
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _locationController.dispose();
     _meetingPointController.dispose();
     _maxMembersController.dispose();
     _imageUrlController.dispose();
     super.dispose();
   }
+
+  // ── Open map picker ───────────────────────────────────────────────────────
+
+  Future<void> _openLocationPicker() async {
+    final result = await context.push<PickedLocation>(
+      AppRoutes.locationPicker,
+    );
+    if (result != null) {
+      setState(() => _pickedLocation = result);
+    }
+  }
+
+  // ── Date / Time pickers ───────────────────────────────────────────────────
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -86,14 +125,23 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
     return '$hour:$minute $period';
   }
 
+  // ── Submit ────────────────────────────────────────────────────────────────
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_pickedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please pick a location on the map.')),
+      );
+      return;
+    }
 
     final ctrl = context.read<HomeController>();
     final data = {
       'title': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'location': _locationController.text.trim(),
+      'location': _pickedLocation!.label,
       'meeting_point': _meetingPointController.text.trim(),
       'date': '${_selectedDate.year}-'
           '${_selectedDate.month.toString().padLeft(2, '0')}-'
@@ -104,6 +152,9 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
       'is_accessible': _isAccessible,
       'is_free': _isFree,
       'max_members': int.tryParse(_maxMembersController.text) ?? 20,
+      'latitude': _pickedLocation!.latitude,
+      'longitude': _pickedLocation!.longitude,
+      'tag_ids': _selectedTagIds.toList(),
       if (_imageUrlController.text.trim().isNotEmpty)
         'image_url': _imageUrlController.text.trim(),
     };
@@ -120,6 +171,8 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
       );
     }
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -145,16 +198,18 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // ── Title ──────────────────────────────────────────────────────
+
+              // ── Title ─────────────────────────────────────────────────────
               _FieldLabel('Activity Title'),
               _FormField(
                 controller: _titleController,
                 hint: 'e.g. Weekend Shivapuri Hike',
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                validator: (v) =>
+                v == null || v.trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 18),
 
-              // ── Description ────────────────────────────────────────────────
+              // ── Description ───────────────────────────────────────────────
               _FieldLabel('Description'),
               _FormField(
                 controller: _descriptionController,
@@ -163,17 +218,66 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
               ),
               const SizedBox(height: 18),
 
-              // ── Location ───────────────────────────────────────────────────
-              _FieldLabel('Location'),
-              _FormField(
-                controller: _locationController,
-                hint: 'e.g. Shivapuri, Nepal',
-                prefixIcon: Icons.location_on_rounded,
-                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+              // ── Location (map picker) ─────────────────────────────────────
+              _FieldLabel('Activity Location'),
+              GestureDetector(
+                onTap: _openLocationPicker,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.inputFill,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _pickedLocation == null
+                          ? AppColors.inputBorder
+                          : AppColors.primary,
+                      width: _pickedLocation == null ? 1 : 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _pickedLocation == null
+                            ? Icons.add_location_alt_rounded
+                            : Icons.location_on_rounded,
+                        color: AppColors.primary, size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _pickedLocation == null
+                            ? Text(
+                          'Tap to pick location on map',
+                          style: GoogleFonts.poppins(
+                              fontSize: 13, color: AppColors.textHint),
+                        )
+                            : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Location set ✓',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary)),
+                            Text(
+                              _pickedLocation!.label,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.textHint),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 18),
 
-              // ── Meeting Point ──────────────────────────────────────────────
+              // ── Meeting Point ─────────────────────────────────────────────
               _FieldLabel('Meeting Point'),
               _FormField(
                 controller: _meetingPointController,
@@ -182,7 +286,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
               ),
               const SizedBox(height: 18),
 
-              // ── Date + Time ────────────────────────────────────────────────
+              // ── Date + Time ───────────────────────────────────────────────
               _FieldLabel('Date & Time'),
               Row(
                 children: [
@@ -211,7 +315,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
               ),
               const SizedBox(height: 18),
 
-              // ── Max Members ────────────────────────────────────────────────
+              // ── Max Members ───────────────────────────────────────────────
               _FieldLabel('Max Members'),
               _FormField(
                 controller: _maxMembersController,
@@ -226,7 +330,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
               ),
               const SizedBox(height: 18),
 
-              // ── Image URL (optional) ───────────────────────────────────────
+              // ── Cover Image URL ───────────────────────────────────────────
               _FieldLabel('Cover Image URL (optional)'),
               _FormField(
                 controller: _imageUrlController,
@@ -235,8 +339,62 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── Tags ───────────────────────────────────────────────────────
-              _FieldLabel('Tags'),
+              // ── Activity Tags (interest chips) ────────────────────────────
+              _FieldLabel('Activity Tags'),
+              Text(
+                'Select tags so people with matching interests find your activity.',
+                style: GoogleFonts.poppins(
+                    fontSize: 11, color: AppColors.textSecondary, height: 1.4),
+              ),
+              const SizedBox(height: 10),
+              _loadingInterests
+                  ? const Center(
+                  child: SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary, strokeWidth: 2)))
+                  : Wrap(
+                spacing: 8, runSpacing: 8,
+                children: _availableInterests.map((interest) {
+                  final id = interest['id'] as int;
+                  final name = interest['name'] as String;
+                  final selected = _selectedTagIds.contains(id);
+                  return GestureDetector(
+                    onTap: () => setState(() {
+                      selected
+                          ? _selectedTagIds.remove(id)
+                          : _selectedTagIds.add(id);
+                    }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.inputBorder,
+                        ),
+                      ),
+                      child: Text(name,
+                          style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: selected
+                                  ? Colors.white
+                                  : AppColors.textSecondary)),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Other Tags ────────────────────────────────────────────────
+              _FieldLabel('Other Tags'),
               _TagToggle(
                 label: 'Women-only 👩',
                 value: _isWomenOnly,
@@ -256,7 +414,6 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
               ),
               const SizedBox(height: 32),
 
-              // ── Submit ─────────────────────────────────────────────────────
               CustomButton(
                 label: 'Create Activity',
                 isLoading: ctrl.isCreating,
@@ -272,23 +429,20 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
 }
 
 // =============================================================================
-// Shared form sub-widgets
+// Reusable sub-widgets
 // =============================================================================
 
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
-
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text,
-          style: GoogleFonts.poppins(
-              fontSize: 13, fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary)),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(text,
+        style: GoogleFonts.poppins(
+            fontSize: 13, fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary)),
+  );
 }
 
 class _FormField extends StatelessWidget {
@@ -318,13 +472,15 @@ class _FormField extends StatelessWidget {
       style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.poppins(fontSize: 13, color: AppColors.textHint),
+        hintStyle: GoogleFonts.poppins(
+            fontSize: 13, color: AppColors.textHint),
         prefixIcon: prefixIcon != null
             ? Icon(prefixIcon, color: AppColors.primary, size: 20)
             : null,
         filled: true,
         fillColor: AppColors.inputFill,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.inputBorder),
@@ -350,7 +506,8 @@ class _SelectionCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _SelectionCard({required this.icon, required this.label, required this.value});
+  const _SelectionCard(
+      {required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -388,7 +545,8 @@ class _TagToggle extends StatelessWidget {
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
-  const _TagToggle({required this.label, required this.value, required this.onChanged});
+  const _TagToggle(
+      {required this.label, required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +555,9 @@ class _TagToggle extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: value ? AppColors.primary.withOpacity(0.08) : AppColors.surface,
+          color: value
+              ? AppColors.primary.withOpacity(0.08)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: value ? AppColors.primary : AppColors.inputBorder,
@@ -410,7 +570,9 @@ class _TagToggle extends StatelessWidget {
             Text(label,
                 style: GoogleFonts.poppins(
                     fontSize: 13, fontWeight: FontWeight.w500,
-                    color: value ? AppColors.primary : AppColors.textSecondary)),
+                    color: value
+                        ? AppColors.primary
+                        : AppColors.textSecondary)),
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 22, height: 22,
@@ -418,10 +580,14 @@ class _TagToggle extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: value ? AppColors.primary : Colors.transparent,
                 border: Border.all(
-                    color: value ? AppColors.primary : AppColors.textHint, width: 2),
+                    color: value
+                        ? AppColors.primary
+                        : AppColors.textHint,
+                    width: 2),
               ),
               child: value
-                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+                  ? const Icon(Icons.check_rounded,
+                  color: Colors.white, size: 14)
                   : null,
             ),
           ],
