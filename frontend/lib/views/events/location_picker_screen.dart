@@ -36,6 +36,7 @@ class LocationPickerScreen extends StatefulWidget {
 
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
   GoogleMapController? _mapController;
+  bool _mapReady = false;
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
 
@@ -61,7 +62,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
+    if (_mapReady) _mapController?.dispose();
     _searchController.dispose();
     _focusNode.dispose();
     _debounce?.cancel();
@@ -118,7 +119,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     setState(() { _showSuggestions = false; _loadingAddress = true; });
     _searchController.text = suggestion.mainText;
 
-    final place = await GeocodingService.instance.getPlaceDetail(suggestion.placeId);
+    final place = await GeocodingService.instance.getPlaceDetail(
+      suggestion.placeId,
+      lat: suggestion.lat,
+      lng: suggestion.lng,
+    );
     if (place != null && mounted) {
       final newPos = LatLng(place.latitude, place.longitude);
       setState(() {
@@ -194,7 +199,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           // ── Map ──────────────────────────────────────────────────────────
           GoogleMap(
             initialCameraPosition: CameraPosition(target: _pinPosition, zoom: 15),
-            onMapCreated: (c) => _mapController = c,
+            onMapCreated: (c) { _mapController = c; setState(() => _mapReady = true); },
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
