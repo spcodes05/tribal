@@ -130,12 +130,14 @@ class SOSActivateView(generics.GenericAPIView):
 
         trusted_contacts = TrustedContact.objects.filter(owner=request.user)
         for contact in trusted_contacts:
+            
             Notification.objects.create(
                 recipient=contact.trusted_user,
                 notification_type='sos',
                 title='SOS Alert',
                 body=f"{request.user.full_name} has activated an SOS alert and needs help.",
             )
+            
 
         serializer = self.get_serializer(session)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
