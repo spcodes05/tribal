@@ -67,12 +67,10 @@ class UserLocationSerializer(serializers.ModelSerializer):
         model = UserLocation
         fields = [
             "id",
-            "user",
             "latitude",
             "longitude",
-            "updated_at",
         ]
-        read_only_fields = ["id", "user", "updated_at"]
+        read_only_fields = ["id"]
 
 
 class SOSSessionSerializer(serializers.ModelSerializer):

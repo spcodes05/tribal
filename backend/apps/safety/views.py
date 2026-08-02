@@ -1,12 +1,15 @@
+print("SAFETY VIEWS FILE LOADED")
+
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from apps.users.models import CustomUser
+from apps.chat.models import Chat, Message
 from .models import SafetySettings, TrustedContact, UserLocation, SOSSession
 from .serializers import SafetySettingsSerializer, TrustedContactSerializer, UserLocationSerializer, SOSSessionSerializer
 from django.utils import timezone
-from apps.events.models import Notification
 
+from apps.events.models import Notification
 
 class SafetySettingsView(generics.RetrieveUpdateAPIView):
     serializer_class = SafetySettingsSerializer
@@ -48,12 +51,19 @@ class TrustedContactDeleteView(generics.DestroyAPIView):
         return TrustedContact.objects.filter(owner=self.request.user)
 
 class UserLocationUpdateView(generics.GenericAPIView):
+    
     serializer_class = UserLocationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        print("LOCATION DATA RECEIVED:", request.data)
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+           print("SERIALIZER ERRORS:", serializer.errors)
+           return Response(
+             serializer.errors,
+             status=status.HTTP_400_BAD_REQUEST
+    )
 
         location, created = UserLocation.objects.update_or_create(
              user=request.user,
@@ -63,10 +73,30 @@ class UserLocationUpdateView(generics.GenericAPIView):
         },
     )
 
+        trusted_contacts = TrustedContact.objects.filter(owner=request.user)
+
+        print("USER SENDING LOCATION:", request.user.id)
+        print("TRUSTED CONTACT COUNT:", trusted_contacts.count())
+        for contact in trusted_contacts:
+            chat = Chat.get_or_create_chat(request.user, contact.trusted_user)
+            print("CHAT ID:", chat.id)
+            Message.objects.create(
+                chat=chat,
+                sender=request.user,
+                content=(
+                    "📍 Live Location Update\n"
+                    f"Latitude: {location.latitude}\n"
+                    f"Longitude: {location.longitude}\n"
+                    "This is an automatic location update."
+                ),
+            )
+
+            print("LOCATION MESSAGE CREATED")
+
         return Response(
              self.get_serializer(location).data,
              status=status.HTTP_200_OK,
-    ) 
+    )
 
 class TrustedUserLocationView(generics.RetrieveAPIView):
     serializer_class = UserLocationSerializer
@@ -137,8 +167,11 @@ class SOSActivateView(generics.GenericAPIView):
                 title='SOS Alert',
                 body=f"{request.user.full_name} has activated an SOS alert and needs help.",
             )
-            
-
+            print("Notification created")
+        # Automatically end SOS after notifications are sent
+        session.status = SOSSession.Status.ENDED
+        session.ended_at = timezone.now()
+        session.save()
         serializer = self.get_serializer(session)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
