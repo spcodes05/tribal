@@ -54,7 +54,9 @@ class LocationService {
     try {
       await _dio.post(
         ApiConfig.userLocation,
-        data: {'latitude': lat, 'longitude': lon},
+        data: {'latitude': double.parse(lat.toStringAsFixed(8)),
+        'longitude': double.parse(lon.toStringAsFixed(8)),
+        },
       );
     } on DioException catch (_) {
       // Non-critical — swallow silently
