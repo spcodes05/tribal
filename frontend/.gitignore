@@ -48,3 +48,4 @@ android/local.properties
 ios/Flutter/Config.xcconfig
 web/env.js
 android/key.properties
+android/.kotlin/

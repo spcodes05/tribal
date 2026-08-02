@@ -18,6 +18,7 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> {
   GoogleMapController? _mapController;
+  bool _mapReady = false;
   final _sheetController = DraggableScrollableController();
 
   @override
@@ -30,7 +31,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
+    if (_mapReady) _mapController?.dispose();
     _sheetController.dispose();
     super.dispose();
   }
@@ -49,6 +50,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ctrl: ctrl,
                 onMapCreated: (c) {
                   _mapController = c;
+                  setState(() => _mapReady = true);
                   // Animate to user location once map is ready
                   Future.delayed(const Duration(milliseconds: 500), () {
                     _mapController?.animateCamera(
@@ -410,16 +412,16 @@ class _BottomSheet extends StatelessWidget {
                     ? const Center(
                     child: CircularProgressIndicator(
                         color: AppColors.primary))
-                    : ctrl.pins.isEmpty
+                    : ctrl.filteredActivities.isEmpty
                     ? _EmptyState()
                     : ListView.separated(
                   controller: scrollController,
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                  itemCount: ctrl.pins.length,
+                  itemCount: ctrl.filteredActivities.length,
                   separatorBuilder: (_, __) =>
                   const SizedBox(height: 12),
                   itemBuilder: (_, i) =>
-                      _ActivityPinCard(pin: ctrl.pins[i]),
+                      _ActivityPinCard(activity: ctrl.filteredActivities[i]),
                 ),
               ),
             ],
@@ -465,13 +467,13 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _ActivityPinCard extends StatelessWidget {
-  final ActivityPinModel pin;
-  const _ActivityPinCard({required this.pin});
+  final ActivityCardModel activity;
+  const _ActivityPinCard({required this.activity});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push(AppRoutes.activityDetail, extra: pin.id),
+      onTap: () => context.push(AppRoutes.activityDetail, extra: activity.id),
       child: Container(
         height: 110,
         decoration: BoxDecoration(
@@ -484,8 +486,8 @@ class _ActivityPinCard extends StatelessWidget {
             // Thumbnail
             SizedBox(
               width: 100,
-              child: pin.imageUrl != null && pin.imageUrl!.isNotEmpty
-                  ? Image.network(pin.imageUrl!, fit: BoxFit.cover,
+              child: activity.imageUrl != null && activity.imageUrl!.isNotEmpty
+                  ? Image.network(activity.imageUrl!, fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => _GradientThumb())
                   : _GradientThumb(),
             ),
@@ -499,7 +501,7 @@ class _ActivityPinCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      pin.title,
+                      activity.title,
                       style: GoogleFonts.poppins(
                           fontSize: 13, fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary),
@@ -514,7 +516,7 @@ class _ActivityPinCard extends StatelessWidget {
                         const SizedBox(width: 3),
                         Expanded(
                           child: Text(
-                            pin.location,
+                            activity.location,
                             style: GoogleFonts.poppins(
                                 fontSize: 11, color: AppColors.textSecondary),
                             maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -525,12 +527,12 @@ class _ActivityPinCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        if (pin.isFree)
+                        if (activity.isFree)
                           _MiniTag('Free', AppColors.primary),
-                        if (pin.isWomenOnly)
+                        if (activity.isWomenOnly)
                           _MiniTag('Women-only', Colors.pink.shade300),
                         _MiniTag(
-                          '${pin.memberCount}/${pin.maxMembers}',
+                          '${activity.memberCount}/${activity.maxMembers}',
                           AppColors.textSecondary,
                         ),
                       ],
