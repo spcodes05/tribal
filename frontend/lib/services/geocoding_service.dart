@@ -1,49 +1,64 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Wraps the Google Geocoding + Places APIs.
+/// Wraps OpenStreetMap's Nominatim search/reverse geocoding API.
 ///
-/// Requires these APIs enabled in Google Cloud Console:
-///   - Geocoding API          → reverseGeocode, forwardGeocode
-///   - Places API (New)       → getSuggestions, getPlaceDetail
+/// Free, no API key required. Usage policy caps requests at 1/second —
+/// see https://operations.osmfoundation.org/policies/nominatim/ — so this
+/// service throttles itself and requires a descriptive User-Agent.
 ///
-/// API key is read from GOOGLE_MAPS_API_KEY in the frontend/.env file.
+/// Note: the map *display* (GoogleMap widget) is unaffected by this file
+/// and still uses Google Maps — this class only covers search/autocomplete
+/// and reverse geocoding (the address label shown under the pin).
 class GeocodingService {
   GeocodingService._();
   static final GeocodingService instance = GeocodingService._();
 
-  static const _geocodeUrl = 'https://maps.googleapis.com/maps/api/geocode/json';
-  static const _autocompleteUrl = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
-  static const _placeDetailUrl = 'https://maps.googleapis.com/maps/api/place/details/json';
+  static const _searchUrl = 'https://nominatim.openstreetmap.org/search';
+  static const _reverseUrl = 'https://nominatim.openstreetmap.org/reverse';
 
-  String get _apiKey => dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
+  // TODO: replace with a real contact (app name + email or repo URL).
+  // Nominatim's usage policy requires a genuine identifying User-Agent —
+  // generic/browser-like User-Agents can get silently blocked.
+  static const _userAgent = 'Tribal/1.0 (spcodes0315@gmail.com)';
 
-  final _dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 8)));
+  final _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 8),
+    headers: {'User-Agent': _userAgent},
+  ));
+
+  // ── Rate limiting: Nominatim allows max 1 request/second ──────────────────
+
+  DateTime _lastRequest = DateTime.fromMillisecondsSinceEpoch(0);
+
+  Future<void> _throttle() async {
+    const minGap = Duration(milliseconds: 1100); // small buffer over 1s
+    final elapsed = DateTime.now().difference(_lastRequest);
+    if (elapsed < minGap) {
+      await Future.delayed(minGap - elapsed);
+    }
+    _lastRequest = DateTime.now();
+  }
+
+  // Caches full place info from getSuggestions() so getPlaceDetail() can
+  // return instantly without a second network call (Nominatim's search
+  // results already include coordinates + full address).
+  final Map<String, GeocodedPlace> _detailCache = {};
 
   // ── 1. Reverse Geocode: lat/lng → address ─────────────────────────────────
 
   Future<String?> reverseGeocode(double lat, double lng) async {
-    if (_apiKey.isEmpty) return null;
     try {
-      final res = await _dio.get(_geocodeUrl, queryParameters: {
-        'latlng': '$lat,$lng',
-        'key': _apiKey,
+      await _throttle();
+      final res = await _dio.get(_reverseUrl, queryParameters: {
+        'lat': lat,
+        'lon': lng,
+        'format': 'json',
+        'addressdetails': 1,
       });
 
-      if (res.data['status'] != 'OK') return null;
-      final results = res.data['results'] as List?;
-      if (results == null || results.isEmpty) return null;
-
-      // Try to find a neighborhood or locality-level result for a clean label
-      for (final result in results) {
-        final types = (result['types'] as List).cast<String>();
-        if (types.contains('neighborhood') ||
-            types.contains('sublocality') ||
-            types.contains('locality')) {
-          return result['formatted_address'] as String?;
-        }
-      }
-      return results.first['formatted_address'] as String?;
+      final data = res.data;
+      if (data == null || data['display_name'] == null) return null;
+      return data['display_name'] as String;
     } catch (_) {
       return null;
     }
@@ -52,25 +67,30 @@ class GeocodingService {
   // ── 2. Forward Geocode: address → lat/lng ─────────────────────────────────
 
   Future<GeocodedPlace?> forwardGeocode(String address) async {
-    if (_apiKey.isEmpty || address.trim().isEmpty) return null;
+    if (address.trim().isEmpty) return null;
     try {
-      final res = await _dio.get(_geocodeUrl, queryParameters: {
-        'address': address,
-        'key': _apiKey,
-        'region': 'NP',
+      await _throttle();
+      final res = await _dio.get(_searchUrl, queryParameters: {
+        'q': address,
+        'format': 'json',
+        'addressdetails': 1,
+        'limit': 1,
+        'countrycodes': 'np',
       });
 
-      if (res.data['status'] != 'OK') return null;
-      final results = res.data['results'] as List?;
+      final results = res.data as List?;
       if (results == null || results.isEmpty) return null;
 
       final first = results.first as Map<String, dynamic>;
-      final loc = first['geometry']['location'];
+      final lat = double.tryParse(first['lat']?.toString() ?? '');
+      final lon = double.tryParse(first['lon']?.toString() ?? '');
+      if (lat == null || lon == null) return null;
+
       return GeocodedPlace(
-        latitude: (loc['lat'] as num).toDouble(),
-        longitude: (loc['lng'] as num).toDouble(),
-        formattedAddress: first['formatted_address'] as String,
-        placeId: first['place_id'] as String?,
+        latitude: lat,
+        longitude: lon,
+        formattedAddress: first['display_name'] as String? ?? '',
+        placeId: first['place_id']?.toString(),
       );
     } catch (_) {
       return null;
@@ -78,89 +98,87 @@ class GeocodingService {
   }
 
   // ── 3. Autocomplete: partial text → suggestions ───────────────────────────
-  // Requires "Places API" enabled in Google Cloud Console.
-  // Falls back to empty list if the API returns an error (e.g. not enabled).
 
   Future<List<PlaceSuggestion>> getSuggestions(
       String input, {
         double? lat,
         double? lng,
       }) async {
-    if (_apiKey.isEmpty || input.trim().length < 2) return [];
+    if (input.trim().length < 2) return [];
     try {
+      await _throttle();
       final params = <String, dynamic>{
-        'input': input,
-        'key': _apiKey,
-        'language': 'en',
-        'components': 'country:NP',
+        'q': input,
+        'format': 'json',
+        'addressdetails': 1,
+        'limit': 5,
+        'countrycodes': 'np',
       };
+
+      // Bias (not restrict) results toward the current pin position using
+      // a rough ~50km bounding box.
       if (lat != null && lng != null) {
-        params['location'] = '$lat,$lng';
-        params['radius'] = '50000';
+        const delta = 0.5;
+        params['viewbox'] =
+        '${lng - delta},${lat + delta},${lng + delta},${lat - delta}';
+        params['bounded'] = 0;
       }
 
-      final res = await _dio.get(_autocompleteUrl, queryParameters: params);
+      final res = await _dio.get(_searchUrl, queryParameters: params);
+      final results = res.data as List? ?? [];
 
-      // 'REQUEST_DENIED' usually means Places API not enabled
-      if (res.data['status'] == 'REQUEST_DENIED') {
-        // Fall back to forward geocode suggestion
-        final place = await forwardGeocode(input);
-        if (place == null) return [];
-        return [
-          PlaceSuggestion(
-            placeId: place.placeId ?? '',
-            description: place.formattedAddress,
-            mainText: place.formattedAddress,
-            secondaryText: '',
-            lat: place.latitude,
-            lng: place.longitude,
-          )
-        ];
-      }
+      return results.map((r) {
+        final map = r as Map<String, dynamic>;
+        final placeId = map['place_id']?.toString() ?? '';
+        final displayName = map['display_name'] as String? ?? '';
+        final latVal = double.tryParse(map['lat']?.toString() ?? '');
+        final lngVal = double.tryParse(map['lon']?.toString() ?? '');
 
-      final predictions = res.data['predictions'] as List? ?? [];
-      return predictions.map((p) => PlaceSuggestion(
-        placeId: p['place_id'] as String,
-        description: p['description'] as String,
-        mainText: p['structured_formatting']?['main_text'] as String? ?? p['description'] as String,
-        secondaryText: p['structured_formatting']?['secondary_text'] as String? ?? '',
-      )).toList();
+        // Nominatim doesn't split main/secondary text like Google does —
+        // approximate it by splitting the display name on the first comma.
+        final parts = displayName.split(',');
+        final mainText = parts.isNotEmpty ? parts.first.trim() : displayName;
+        final secondaryText =
+        parts.length > 1 ? parts.sublist(1).join(',').trim() : '';
+
+        // Cache the full detail now so getPlaceDetail() below doesn't need
+        // a second network call.
+        if (placeId.isNotEmpty && latVal != null && lngVal != null) {
+          _detailCache[placeId] = GeocodedPlace(
+            latitude: latVal,
+            longitude: lngVal,
+            formattedAddress: displayName,
+            placeId: placeId,
+          );
+        }
+
+        return PlaceSuggestion(
+          placeId: placeId,
+          description: displayName,
+          mainText: mainText,
+          secondaryText: secondaryText,
+          lat: latVal,
+          lng: lngVal,
+        );
+      }).toList();
     } catch (_) {
       return [];
     }
   }
 
   // ── 4. Place Detail: placeId → lat/lng ───────────────────────────────────
-  // If placeId is empty (fallback from getSuggestions), lat/lng already known.
+  // Nominatim's search results already contain everything we need, so this
+  // reads from the cache populated by getSuggestions() instead of making
+  // another network call.
 
   Future<GeocodedPlace?> getPlaceDetail(String placeId, {double? lat, double? lng}) async {
-    // If we already have coordinates (from fallback), return them directly
-    if (placeId.isEmpty && lat != null && lng != null) {
+    if (_detailCache.containsKey(placeId)) {
+      return _detailCache[placeId];
+    }
+    if (lat != null && lng != null) {
       return GeocodedPlace(latitude: lat, longitude: lng, formattedAddress: '');
     }
-
-    if (_apiKey.isEmpty || placeId.isEmpty) return null;
-    try {
-      final res = await _dio.get(_placeDetailUrl, queryParameters: {
-        'place_id': placeId,
-        'fields': 'geometry,formatted_address,name',
-        'key': _apiKey,
-      });
-
-      if (res.data['status'] == 'REQUEST_DENIED') return null;
-      final result = res.data['result'] as Map<String, dynamic>?;
-      if (result == null) return null;
-
-      final loc = result['geometry']['location'];
-      return GeocodedPlace(
-        latitude: (loc['lat'] as num).toDouble(),
-        longitude: (loc['lng'] as num).toDouble(),
-        formattedAddress: result['formatted_address'] as String? ?? result['name'] as String? ?? '',
-        placeId: placeId,
-      );
-    } catch (_) {
-      return null;
-    }
+    return null;
   }
 }
 

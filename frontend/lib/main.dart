@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'controllers/home_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/current_user_controller.dart';
@@ -13,7 +14,7 @@ void main() async {
 
   // Load environment variables (API keys etc.) from .env file.
   // The .env file is gitignored — see .env.example for required keys.
-
+  await dotenv.load(fileName: ".env");
 
   // Lock orientation to portrait for consistent mobile UX
   await SystemChrome.setPreferredOrientations([

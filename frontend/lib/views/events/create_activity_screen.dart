@@ -152,8 +152,8 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
       'is_accessible': _isAccessible,
       'is_free': _isFree,
       'max_members': int.tryParse(_maxMembersController.text) ?? 20,
-      'latitude': _pickedLocation!.latitude,
-      'longitude': _pickedLocation!.longitude,
+      'latitude': double.parse(_pickedLocation!.latitude.toStringAsFixed(6)),
+      'longitude': double.parse(_pickedLocation!.longitude.toStringAsFixed(6)),
       'tag_ids': _selectedTagIds.toList(),
       if (_imageUrlController.text.trim().isNotEmpty)
         'image_url': _imageUrlController.text.trim(),
