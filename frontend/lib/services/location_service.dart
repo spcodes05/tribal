@@ -86,9 +86,9 @@ class LocationService {
 
       await _dio.post(
         ApiConfig.userLocation,
-        data: {'latitude': double.parse(lat.toStringAsFixed(15)),
+        data: {'latitude': double.parse(lat.toStringAsFixed(12)),
 
-        'longitude': double.parse(lon.toStringAsFixed(15)),
+        'longitude': double.parse(lon.toStringAsFixed(12)),
 
 
         },

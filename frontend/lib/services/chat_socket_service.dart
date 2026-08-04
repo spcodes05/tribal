@@ -111,10 +111,18 @@ class ChatSocketService {
   /// Sends a new message over the open socket. Matches
   /// `ChatConsumer.receive()`'s expected payload exactly.
   void send(String content) {
-    if (!isConnected || _channel == null) return;
+    print("SEND CALLED");
+    print("Status: $_status");
+    print("Channel null: ${_channel == null}");
+
+    if (!isConnected || _channel == null) {
+      print("Socket not connected. Message NOT sent.");
+      return;
+    }
+
+    print("Sending: $content");
     _channel!.sink.add(jsonEncode({'content': content}));
   }
-
   void _scheduleReconnect() {
     if (_manuallyClosed) return;
     _reconnectTimer?.cancel();
