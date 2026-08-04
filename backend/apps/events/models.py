@@ -41,15 +41,15 @@ class Activity(models.Model):
 
     # Used by recommendation engine
     latitude = models.DecimalField(
-        max_digits=9,
-        decimal_places=6,
+        max_digits=18,
+        decimal_places=15,
         null=True,
         blank=True,
     )
 
     longitude = models.DecimalField(
-        max_digits=9,
-        decimal_places=6,
+        max_digits=18,
+        decimal_places=15,
         null=True,
         blank=True,
     )
