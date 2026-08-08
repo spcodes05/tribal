@@ -10,9 +10,10 @@ Implements two algorithms:
               + 0.20 × LocationScore
 
 2. Activity Recommendation  — what activities to show
-   Score(u,a) = 0.70 × JaccardTags
-              + 0.20 × PopularityScore
-              + 0.10 × LocationScore
+   Score(u,a) = 0.40 × SimilarUserScore  (avg Jaccard vs joined members)
+              + 0.30 × TagSimilarity      (Jaccard user.interests ∩ activity.tags)
+              + 0.20 × LocationScore      (Haversine decay, 50 km cutoff)
+              + 0.10 × PopularityScore    (member_count / max_members)
 
 Both use Jaccard similarity for set-based comparisons because:
   - Interest/tag data is binary (either you have it or you don't)
@@ -38,9 +39,10 @@ PEOPLE_WEIGHTS = {
 }
 
 ACTIVITY_WEIGHTS = {
-    'tags':       0.70,
-    'popularity': 0.20,
-    'location':   0.10,
+    'similar_user': 0.40,   # avg Jaccard between requesting user and joined members
+    'tags':         0.30,   # Jaccard(user.interests ∩ activity.tags)
+    'location':     0.20,   # Haversine decay, 0 beyond MAX_DISTANCE_KM
+    'popularity':   0.10,   # member_count / max_members
 }
 
 # Beyond this distance (km) the location score is 0.
@@ -212,6 +214,25 @@ def rank_people(requesting_user, candidates) -> list:
 
 # ── Activity recommendation ───────────────────────────────────────────────────
 
+def similar_user_score(user_interests: set, members_interests: list) -> float:
+    """
+    SimilarUserScore: average Jaccard similarity between the requesting
+    user's interests and each joined member's interests.
+
+    Returns 0.0 if no members have joined yet.
+
+    Example:
+        User interests = {Hiking, Music, Gaming}
+        Member A       = {Hiking, Gaming}        -> Jaccard = 2/3 = 0.667
+        Member B       = {Music, Travel}         -> Jaccard = 1/4 = 0.250
+        SimilarUserScore = (0.667 + 0.250) / 2  = 0.458
+    """
+    if not members_interests:
+        return 0.0
+    total = sum(jaccard(user_interests, m) for m in members_interests)
+    return total / len(members_interests)
+
+
 def score_activity(
     user_interests: set,
     user_lat, user_lon,
@@ -219,54 +240,48 @@ def score_activity(
     activity_member_count: int,
     activity_max_members: int,
     activity_lat, activity_lon,
+    members_interests: list = None,
 ) -> dict:
     """
     Computes the activity recommendation score for one (user, activity) pair.
 
-    Parameters
-    ----------
-    user_interests          : set of interest name strings
-    user_lat / user_lon     : user's coordinates (may be None)
-    activity_tags           : set of tag name strings on the activity
-    activity_member_count   : how many people have joined
-    activity_max_members    : capacity
-    activity_lat / lon      : activity's coordinates (may be None)
+    Formula (as specified):
+        ActivityScore(u, a) = 0.40 * SimilarUserScore
+                            + 0.30 * TagSimilarity
+                            + 0.20 * LocationScore
+                            + 0.10 * PopularityScore
 
-    Returns
-    -------
-    dict with component scores + final score, e.g.:
-    {
-        'tag_similarity':   0.60,
-        'popularity_score': 0.40,
-        'location_score':   0.90,
-        'final_score':      0.65,
-        'match_percent':    65,
-    }
+    SimilarUserScore = avg Jaccard(user.interests, member.interests)
+                       across all members who joined this activity.
+    TagSimilarity    = Jaccard(user.interests, activity.tags)
+    LocationScore    = linear decay, 0 beyond MAX_DISTANCE_KM
+    PopularityScore  = member_count / max_members, bounded [0, 1]
     """
-    tag_sim = jaccard(user_interests, activity_tags)
+    if members_interests is None:
+        members_interests = []
 
-    # Popularity: ratio of joined members to capacity, bounded [0, 1]
-    # A full activity scores 1.0; an empty one scores 0.0.
-    # This naturally surfaces trending / popular events.
-    if activity_max_members > 0:
-        popularity = min(1.0, activity_member_count / activity_max_members)
-    else:
-        popularity = 0.0
-
+    sim_user  = similar_user_score(user_interests, members_interests)
+    tag_sim   = jaccard(user_interests, activity_tags)
     loc_score = location_score(user_lat, user_lon, activity_lat, activity_lon)
+    popularity = (
+        min(1.0, activity_member_count / activity_max_members)
+        if activity_max_members > 0 else 0.0
+    )
 
     final = (
-        ACTIVITY_WEIGHTS['tags']       * tag_sim
-        + ACTIVITY_WEIGHTS['popularity'] * popularity
+        ACTIVITY_WEIGHTS['similar_user'] * sim_user
+        + ACTIVITY_WEIGHTS['tags']       * tag_sim
         + ACTIVITY_WEIGHTS['location']   * loc_score
+        + ACTIVITY_WEIGHTS['popularity'] * popularity
     )
 
     return {
-        'tag_similarity':   round(tag_sim, 4),
-        'popularity_score': round(popularity, 4),
-        'location_score':   round(loc_score, 4),
-        'final_score':      round(final, 4),
-        'match_percent':    round(final * 100),
+        'similar_user_score': round(sim_user, 4),
+        'tag_similarity':     round(tag_sim, 4),
+        'location_score':     round(loc_score, 4),
+        'popularity_score':   round(popularity, 4),
+        'final_score':        round(final, 4),
+        'match_percent':      round(final * 100),
     }
 
 
@@ -274,23 +289,11 @@ def rank_activities(requesting_user, activities) -> list:
     """
     Ranks a queryset of Activity instances by recommendation score.
 
-    Parameters
-    ----------
-    requesting_user : CustomUser instance (needs interests + lat/lon)
-    activities      : queryset with tags + members prefetched
+    Assumes activities queryset has:
+        - tags prefetched
+        - members__user__interests prefetched (for SimilarUserScore)
 
-    Returns
-    -------
-    List of dicts sorted by final_score descending:
-    [
-        {
-            'activity':      <Activity>,
-            'match_percent': 65,
-            'tag_similarity': 0.60,
-            ...
-        },
-        ...
-    ]
+    Returns list of dicts sorted by final_score descending.
     """
     u_interests = set(requesting_user.interests.values_list('name', flat=True))
     u_lat = requesting_user.latitude
@@ -299,13 +302,23 @@ def rank_activities(requesting_user, activities) -> list:
     results = []
     for activity in activities:
         a_tags = set(activity.tags.values_list('name', flat=True))
+
+        # Collect each member's interest set for SimilarUserScore
+        members_interests = [
+            set(member.user.interests.values_list('name', flat=True))
+            for member in activity.members.all()
+        ]
+
         scores = score_activity(
-            u_interests, u_lat, u_lon,
-            a_tags,
-            activity.member_count,
-            activity.max_members,
-            activity.latitude,
-            activity.longitude,
+            user_interests=u_interests,
+            user_lat=u_lat,
+            user_lon=u_lon,
+            activity_tags=a_tags,
+            activity_member_count=activity.member_count,
+            activity_max_members=activity.max_members,
+            activity_lat=activity.latitude,
+            activity_lon=activity.longitude,
+            members_interests=members_interests,
         )
         results.append({'activity': activity, **scores})
 
