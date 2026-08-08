@@ -42,7 +42,7 @@ class HomeFeedView(APIView):
         activities_qs = (
             Activity.objects
             .select_related('host')
-            .prefetch_related('members', 'tags', 'host__interests')
+            .prefetch_related('members__user__interests', 'tags', 'host__interests')
         )
 
         ranked_activities = rank_activities(user, activities_qs)
@@ -118,7 +118,7 @@ class ActivityListCreateView(APIView):
         activities_qs = (
             Activity.objects
             .select_related('host')
-            .prefetch_related('members', 'tags', 'host__interests')
+            .prefetch_related('members__user__interests', 'tags', 'host__interests')
         )
         ranked = rank_activities(request.user, activities_qs)
         match_percents = {
@@ -280,7 +280,7 @@ class SearchView(APIView):
             Activity.objects
             .filter(Q(title__icontains=q) | Q(location__icontains=q))
             .select_related('host')
-            .prefetch_related('members', 'tags', 'host__interests')
+            .prefetch_related('members__user__interests', 'tags', 'host__interests')
         )
         ranked = rank_activities(request.user, activities_qs)
         match_percents = {
