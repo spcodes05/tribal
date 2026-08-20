@@ -45,6 +45,7 @@ class RoommateProfileView(APIView):
         serializer = RoommateProfileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user)
+        self._recalculate_matches(request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def put(self, request):
@@ -63,7 +64,14 @@ class RoommateProfileView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        self._recalculate_matches(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def _recalculate_matches(self, user):
+        try:
+            persist_matches_for_user(user)
+        except RoommateProfileNotFoundError:
+            pass
 
 
 class FindRoommatesView(APIView):
@@ -137,3 +145,6 @@ class RefreshRoommateMatchesView(APIView):
 
         serializer = RoommateMatchResultSerializer(matches, many=True, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    
