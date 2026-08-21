@@ -193,7 +193,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 child: TextField(
                   controller: _searchController,
                   onChanged: _searchUsers,
-                  style: GoogleFonts.poppins(fontSize: 14),
+                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.black,),
                   decoration: InputDecoration(
                     hintText: 'Search by name or email',
                     hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.black45),

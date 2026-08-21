@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/constants/app_colors.dart';
 import '../models/chat_model.dart';
+import 'location_card.dart';
 
 /// A single chat bubble.
 ///
@@ -16,6 +17,17 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (message.isLiveLocation) {
+      return Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: LocationCard(
+          latitude: message.liveLocationLatitude,
+          longitude: message.liveLocationLongitude,
+          isActive: message.isLiveLocationActive,
+        ),
+      );
+    }
+
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(

@@ -22,6 +22,18 @@ class MessageModel {
   final bool isRead;
   final DateTime? editedAt;
 
+  /// 'TEXT' (default) or 'LIVE_LOCATION' — mirrors
+  /// `Message.MessageType` (backend/apps/chat/models.py). A
+  /// LIVE_LOCATION message is created ONCE per live-location session;
+  /// subsequent coordinate updates mutate [liveLocationLatitude] /
+  /// [liveLocationLongitude] / [liveLocationStatus] in place rather than
+  /// creating new messages — see LiveLocationSocketEvent below.
+  final String messageType;
+  final int? liveLocationId;
+  final String? liveLocationStatus; // 'ACTIVE' | 'ENDED'
+  final double? liveLocationLatitude;
+  final double? liveLocationLongitude;
+
   const MessageModel({
     required this.id,
     required this.chatId,
@@ -30,7 +42,21 @@ class MessageModel {
     required this.timestamp,
     required this.isRead,
     this.editedAt,
+    this.messageType = 'TEXT',
+    this.liveLocationId,
+    this.liveLocationStatus,
+    this.liveLocationLatitude,
+    this.liveLocationLongitude,
   });
+
+  bool get isLiveLocation => messageType == 'LIVE_LOCATION';
+  bool get isLiveLocationActive => liveLocationStatus == 'ACTIVE';
+
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
 
   /// From `GET /api/chat/<id>/` or `POST /api/chat/<id>/send/`
   /// (MessageSerializer).
@@ -45,13 +71,21 @@ class MessageModel {
       editedAt: json['edited_at'] != null
           ? DateTime.parse(json['edited_at'] as String).toLocal()
           : null,
+      messageType: json['message_type'] as String? ?? 'TEXT',
+      liveLocationId: json['live_location_id'] as int?,
+      liveLocationStatus: json['live_location_status'] as String?,
+      liveLocationLatitude: _toDouble(json['live_location_latitude']),
+      liveLocationLongitude: _toDouble(json['live_location_longitude']),
     );
   }
 
   /// From a WebSocket `chat_message` broadcast (see
   /// backend/apps/chat/consumers.py `ChatConsumer.receive`), which uses a
   /// slightly different key set (`message_id` instead of `id`, no
-  /// `is_read`/`edited_at`) than the REST serializer above.
+  /// `is_read`/`edited_at`) than the REST serializer above. The initial
+  /// live-location card is also sent as a `chat_message` broadcast (see
+  /// SafetySettingsView._start_live_location), carrying the same
+  /// `message_type`/`live_location_*` keys as the REST payload.
   factory MessageModel.fromSocketEvent(Map<String, dynamic> json) {
     return MessageModel(
       id: json['message_id'] as int,
@@ -60,10 +94,20 @@ class MessageModel {
       content: json['content'] as String? ?? '',
       timestamp: DateTime.parse(json['timestamp'] as String).toLocal(),
       isRead: false,
+      messageType: json['message_type'] as String? ?? 'TEXT',
+      liveLocationId: json['live_location_id'] as int?,
+      liveLocationStatus: json['live_location_status'] as String?,
+      liveLocationLatitude: _toDouble(json['latitude']),
+      liveLocationLongitude: _toDouble(json['longitude']),
     );
   }
 
-  MessageModel copyWith({bool? isRead}) {
+  MessageModel copyWith({
+    bool? isRead,
+    String? liveLocationStatus,
+    double? liveLocationLatitude,
+    double? liveLocationLongitude,
+  }) {
     return MessageModel(
       id: id,
       chatId: chatId,
@@ -72,6 +116,11 @@ class MessageModel {
       timestamp: timestamp,
       isRead: isRead ?? this.isRead,
       editedAt: editedAt,
+      messageType: messageType,
+      liveLocationId: liveLocationId,
+      liveLocationStatus: liveLocationStatus ?? this.liveLocationStatus,
+      liveLocationLatitude: liveLocationLatitude ?? this.liveLocationLatitude,
+      liveLocationLongitude: liveLocationLongitude ?? this.liveLocationLongitude,
     );
   }
 

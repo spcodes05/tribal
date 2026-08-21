@@ -48,13 +48,41 @@ class _SafetyScreenState extends State<SafetyScreen> {
     }
   }
 
-  void _toggleLocationSharing(bool value) {
-    if (value) {
-      LocationService.instance.startLocationSharing();
-    } else {
-      LocationService.instance.stopLocationSharing();
+  bool _isTogglingLocation = false;
+
+  Future<void> _toggleLocationSharing(bool value) async {
+    if (_isTogglingLocation) return;
+    setState(() => _isTogglingLocation = true);
+
+    try {
+      // Reuses the existing safety/settings/ endpoint (SafetySettingsView),
+      // which now also creates/ends the ONE LiveLocationSession and
+      // sends/broadcasts the live-location card — see backend/apps/safety/views.py.
+      await ApiClient.instance.dio.patch(
+        ApiConfig.safetySettings,
+        data: {'live_location_enabled': value},
+      );
+
+      if (value) {
+        LocationService.instance.startLocationSharing();
+      } else {
+        LocationService.instance.stopLocationSharing();
+      }
+      if (mounted) {
+        setState(() => _isLocationSharing = LocationService.instance.isLocationSharing);
+      }
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final apiError = ApiException.fromDio(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(apiError.message),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isTogglingLocation = false);
     }
-    setState(() => _isLocationSharing = LocationService.instance.isLocationSharing);
   }
 
 

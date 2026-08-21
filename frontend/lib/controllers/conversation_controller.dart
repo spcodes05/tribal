@@ -102,8 +102,22 @@ class ConversationController extends ChangeNotifier {
   }
 
   void _handleIncomingSocketEvent(Map<String, dynamic> event) {
-    if (event['type'] != 'chat_message') return;
+    switch (event['type']) {
+      case 'chat_message':
+        _handleChatMessageEvent(event);
+        break;
+      case 'live_location_update':
+        _handleLiveLocationUpdateEvent(event);
+        break;
+      case 'live_location_ended':
+        _handleLiveLocationEndedEvent(event);
+        break;
+      default:
+        return;
+    }
+  }
 
+  void _handleChatMessageEvent(Map<String, dynamic> event) {
     final incoming = MessageModel.fromSocketEvent(event);
 
     // Already have this exact message (e.g. a duplicate broadcast) — skip.
@@ -123,6 +137,39 @@ class ConversationController extends ChangeNotifier {
       }
     }
 
+    notifyListeners();
+  }
+
+  // Mutates the existing live-location card message's coordinates in
+  // place — the backend never sends a new Message for coordinate updates
+  // (see apps/safety/views.py UserLocationUpdateView), so this must not
+  // append to _messages.
+  void _handleLiveLocationUpdateEvent(Map<String, dynamic> event) {
+    final liveLocationId = event['live_location_id'] as int?;
+    if (liveLocationId == null) return;
+
+    final idx = _messages.indexWhere((m) => m.liveLocationId == liveLocationId);
+    if (idx == -1) return;
+
+    final lat = double.tryParse(event['latitude']?.toString() ?? '');
+    final lng = double.tryParse(event['longitude']?.toString() ?? '');
+    if (lat == null || lng == null) return;
+
+    _messages[idx] = _messages[idx].copyWith(
+      liveLocationLatitude: lat,
+      liveLocationLongitude: lng,
+    );
+    notifyListeners();
+  }
+
+  void _handleLiveLocationEndedEvent(Map<String, dynamic> event) {
+    final liveLocationId = event['live_location_id'] as int?;
+    if (liveLocationId == null) return;
+
+    final idx = _messages.indexWhere((m) => m.liveLocationId == liveLocationId);
+    if (idx == -1) return;
+
+    _messages[idx] = _messages[idx].copyWith(liveLocationStatus: 'ENDED');
     notifyListeners();
   }
 
