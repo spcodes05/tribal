@@ -6,12 +6,18 @@ import 'package:provider/provider.dart';
 import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
+import '../../models/activity_model.dart';
 import '../../services/events_service.dart';
 import '../../views/events/location_picker_screen.dart';
 import '../../widgets/custom_button.dart';
 
 class CreateActivityScreen extends StatefulWidget {
-  const CreateActivityScreen({super.key});
+  /// If set, the screen edits this activity instead of creating a new one.
+  /// Only the host is expected to reach this screen in edit mode — the
+  /// entry point (activity detail screen) already gates the Edit button
+  /// to the host, and the backend re-enforces this on PATCH regardless.
+  final ActivityDetailModel? editingActivity;
+  const CreateActivityScreen({super.key, this.editingActivity});
 
   @override
   State<CreateActivityScreen> createState() => _CreateActivityScreenState();
@@ -41,10 +47,47 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
   final Set<int> _selectedTagIds = {};
   bool _loadingInterests = true;
 
+  bool get _isEditing => widget.editingActivity != null;
+
   @override
   void initState() {
     super.initState();
+    if (_isEditing) _prefillFromActivity(widget.editingActivity!);
     _loadInterests();
+  }
+
+  void _prefillFromActivity(ActivityDetailModel activity) {
+    _titleController.text = activity.title;
+    _descriptionController.text = activity.description;
+    _meetingPointController.text = activity.meetingPoint;
+    _maxMembersController.text = activity.maxMembers.toString();
+    _imageUrlController.text = activity.imageUrl ?? '';
+    _isWomenOnly = activity.isWomenOnly;
+    _isAccessible = activity.isAccessible;
+    _isFree = activity.isFree;
+
+    // activity.date is "YYYY-MM-DD", activity.time is "HH:MM:SS"
+    final dateParts = activity.date.split('-');
+    if (dateParts.length == 3) {
+      _selectedDate = DateTime(
+        int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]),
+      );
+    }
+    final timeParts = activity.time.split(':');
+    if (timeParts.length >= 2) {
+      _selectedTime = TimeOfDay(
+        hour: int.parse(timeParts[0]), minute: int.parse(timeParts[1]),
+      );
+    }
+
+    if (activity.latitude != 0.0 || activity.longitude != 0.0) {
+      _pickedLocation = PickedLocation(
+        latitude: activity.latitude,
+        longitude: activity.longitude,
+        label: activity.location,
+      );
+    }
+    // Tag IDs are resolved once _availableInterests loads, in _loadInterests().
   }
 
   Future<void> _loadInterests() async {
@@ -53,6 +96,16 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
       setState(() {
         _availableInterests = interests;
         _loadingInterests = false;
+        if (_isEditing) {
+          // Map the activity's tag names (from the detail endpoint) back
+          // to interest IDs (needed by the create/update payload).
+          final activityTagNames = widget.editingActivity!.tags.toSet();
+          for (final interest in _availableInterests) {
+            if (activityTagNames.contains(interest['name'] as String)) {
+              _selectedTagIds.add(interest['id'] as int);
+            }
+          }
+        }
       });
     } catch (_) {
       setState(() => _loadingInterests = false);
@@ -159,10 +212,13 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
         'image_url': _imageUrlController.text.trim(),
     };
 
-    final created = await ctrl.createActivity(data);
-    if (created != null && mounted) {
+    final result = _isEditing
+        ? await ctrl.updateActivity(widget.editingActivity!.id, data)
+        : await ctrl.createActivity(data);
+
+    if (result != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Activity created! 🎉')),
+        SnackBar(content: Text(_isEditing ? 'Activity updated! ✅' : 'Activity created! 🎉')),
       );
       context.pop();
     } else if (mounted && ctrl.error != null) {
@@ -187,7 +243,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
             child: const Icon(Icons.arrow_back_ios_new_rounded,
                 color: AppColors.textPrimary, size: 20),
           ),
-          title: Text('Create Activity',
+          title: Text(_isEditing ? 'Edit Activity' : 'Create Activity',
               style: GoogleFonts.poppins(
                   fontSize: 17, fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary)),
@@ -415,7 +471,7 @@ class _CreateActivityScreenState extends State<CreateActivityScreen> {
               const SizedBox(height: 32),
 
               CustomButton(
-                label: 'Create Activity',
+                label: _isEditing ? 'Save Changes' : 'Create Activity',
                 isLoading: ctrl.isCreating,
                 onTap: _submit,
               ),

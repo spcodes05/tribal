@@ -34,6 +34,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "10.0.2.2",
     "192.168.254.195",
+    "192.168.1.75"
 ]
 
 
@@ -172,21 +173,21 @@ from datetime import timedelta
 # During development, emails are printed to the terminal console.
 # No real email is sent. You will see the full email content in your
 # runserver terminal window — copy the token from there to test.
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+#EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # These values appear as the sender in verification emails.
-DEFAULT_FROM_EMAIL = "Tribal <noreply@tribal.app>"
-EMAIL_HOST_USER = "noreply@tribal.app"
+
+
 
 # ── For production, replace the above EMAIL_BACKEND with: ──
 #
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_HOST = "smtp.gmail.com"          # or SendGrid, Mailgun, etc.
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = "your@gmail.com"
-# EMAIL_HOST_PASSWORD = "your_app_password"   # use env variable, never hardcode
-#
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")         # or SendGrid, Mailgun, etc.
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "noreply@tribal.app")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Tribal <noreply@tribal.app>")
 # For SendGrid specifically:
 # EMAIL_HOST = "smtp.sendgrid.net"
 # EMAIL_HOST_USER = "apikey"
@@ -195,6 +196,13 @@ EMAIL_HOST_USER = "noreply@tribal.app"
 # The base URL of your frontend, used to build the verification link.
 # In production this would be: https://yourdomain.com
 FRONTEND_URL = "http://localhost:3000"
+
+# ─────────────────────────────────────────────
+# SUPABASE STORAGE (profile pictures)
+# ─────────────────────────────────────────────
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_PROFILE_BUCKET = os.getenv("SUPABASE_PROFILE_BUCKET", "profile-pictures")
 
 REST_FRAMEWORK = {
     # Sets JWT as the default authentication method for all API views.

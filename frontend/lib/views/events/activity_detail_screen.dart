@@ -3,8 +3,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../controllers/current_user_controller.dart';
 import '../../controllers/home_controller.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/routes/app_routes.dart';
 import '../../models/activity_model.dart';
 import '../../services/weather_service.dart';
 import '../../widgets/tribal_bottom_nav.dart';
@@ -32,6 +34,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     return Consumer<HomeController>(
       builder: (context, ctrl, _) {
         final activity = ctrl.activityDetail;
+        final currentUserId = context.watch<CurrentUserController>().id;
+        final isHost = activity != null && currentUserId != null &&
+            activity.host.id.toString() == currentUserId;
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -62,7 +67,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               ],
             ),
           )
-              : _ActivityDetailBody(activity: activity),
+              : _ActivityDetailBody(activity: activity, isHost: isHost),
         );
       },
     );
@@ -71,15 +76,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
 class _ActivityDetailBody extends StatelessWidget {
   final ActivityDetailModel activity;
+  final bool isHost;
 
-  const _ActivityDetailBody({required this.activity});
+  const _ActivityDetailBody({required this.activity, required this.isHost});
 
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
         // Hero cover image with back + share buttons
-        SliverToBoxAdapter(child: _CoverImage(activity: activity)),
+        SliverToBoxAdapter(child: _CoverImage(activity: activity, isHost: isHost)),
 
         // All detail content — a white rounded-top sheet that overlaps
         // the bottom edge of the cover image.
@@ -236,7 +242,8 @@ class _ActivityDetailBody extends StatelessWidget {
 
 class _CoverImage extends StatelessWidget {
   final ActivityDetailModel activity;
-  const _CoverImage({required this.activity});
+  final bool isHost;
+  const _CoverImage({required this.activity, required this.isHost});
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +290,7 @@ class _CoverImage extends StatelessWidget {
           // Share button
           Positioned(
             top: MediaQuery.of(context).padding.top + 12,
-            right: 16,
+            right: isHost ? 62 : 16,
             child: GestureDetector(
               onTap: () {},
               child: Container(
@@ -295,6 +302,85 @@ class _CoverImage extends StatelessWidget {
                 child: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
               ),
             ),
+          ),
+
+          // Host-only edit/delete menu
+          if (isHost)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 12,
+              right: 16,
+              child: Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.35),
+                  shape: BoxShape.circle,
+                ),
+                child: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 18),
+                  padding: EdgeInsets.zero,
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      context.push(AppRoutes.createActivity, extra: activity);
+                    } else if (value == 'delete') {
+                      _confirmDelete(context);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(children: [
+                        Icon(Icons.edit_rounded, size: 18, color: AppColors.textPrimary),
+                        SizedBox(width: 10),
+                        Text('Edit Activity'),
+                      ]),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(children: [
+                        Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                        SizedBox(width: 10),
+                        Text('Delete Activity', style: TextStyle(color: Colors.red)),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this activity?'),
+        content: const Text(
+          'This will permanently delete the activity for everyone who joined. This can\'t be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              final ctrl = context.read<HomeController>();
+              final success = await ctrl.deleteActivity(activity.id);
+              if (success && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Activity deleted.')),
+                );
+                context.pop();
+              } else if (context.mounted && ctrl.error != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(ctrl.error!)),
+                );
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

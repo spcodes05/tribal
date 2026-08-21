@@ -5,8 +5,9 @@ import 'package:provider/provider.dart';
 import '../../controllers/profile_controller.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
-import '../../models/user_model.dart';
+//import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
+import '../../services/profile_service.dart';
 import '../../widgets/custom_button.dart';
 
 /// No settings screen existed in the project before this — built fresh
@@ -50,17 +51,21 @@ class _ProfileSettingsViewState extends State<_ProfileSettingsView> {
 
   Future<void> _loadCurrentUser() async {
     try {
-      final UserModel me = await AuthService.instance.getCurrentUser();
+      final profile = await ProfileService.instance.getTribeStatus();
+      final me = profile.profile;
+
       _usernameCtrl.text = me.username ?? '';
       _bioCtrl.text = me.bio ?? '';
       _ageCtrl.text = me.age?.toString() ?? '';
       _occupationCtrl.text = me.occupation ?? '';
       _universityCtrl.text = me.university ?? '';
       _locationCtrl.text = me.location ?? '';
-    } catch (_) {
+    } catch (e) {
       _loadError = 'Could not load your profile.';
     } finally {
-      if (mounted) setState(() => _isLoadingUser = false);
+      if (mounted) {
+        setState(() => _isLoadingUser = false);
+      }
     }
   }
 

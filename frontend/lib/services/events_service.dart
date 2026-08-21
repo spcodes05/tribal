@@ -80,6 +80,23 @@ class EventsService {
     }
   }
 
+  Future<ActivityDetailModel> updateActivity(int id, Map<String, dynamic> data) async {
+    try {
+      final res = await _dio.patch(ApiConfig.activityDetail(id), data: data);
+      return ActivityDetailModel.fromJson(res.data);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<void> deleteActivity(int id) async {
+    try {
+      await _dio.delete(ApiConfig.activityDetail(id));
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   // ── Notifications ──────────────────────────────────────────────────────────
 
   Future<List<NotificationModel>> getNotifications() async {

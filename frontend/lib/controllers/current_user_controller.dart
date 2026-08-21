@@ -14,6 +14,9 @@ import '../services/auth_service.dart';
 /// see widgets/user_avatar.dart) rebuilds immediately. No screen refresh,
 /// no restart, no per-screen wiring.
 class CurrentUserController extends ChangeNotifier {
+  String? _id;
+  String? get id => _id;
+
   String? _fullName;
   String? get fullName => _fullName;
 
@@ -29,6 +32,7 @@ class CurrentUserController extends ChangeNotifier {
   Future<void> load() async {
     try {
       final user = await AuthService.instance.getCurrentUser();
+      _id = user.id;
       _fullName = user.fullName;
       _profileImage = user.profileImage;
       _isLoaded = true;

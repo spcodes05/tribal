@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/network/api_config.dart';
+import '../../widgets/user_avatar.dart';
 
 class TrustedContactsScreen extends StatefulWidget {
   const TrustedContactsScreen({super.key});
@@ -263,6 +264,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                     final detail = contact['trusted_user_detail'] as Map<String, dynamic>?;
                     final name = detail?['full_name'] as String? ?? 'Unknown';
                     final email = detail?['email'] as String? ?? '';
+                    final profileImage = detail?['profile_image'] as String?;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
@@ -279,12 +281,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                       ),
                       child: Row(
                         children: [
-                          CircleAvatar(
-                            backgroundColor: const Color(0xFFD9D9D9),
-                            child: Text(
-                              name.isNotEmpty ? name[0].toUpperCase() : '?',
-                              style: GoogleFonts.poppins(color: Colors.black87),
-                            ),
+                          UserAvatar(
+                            imageUrl: profileImage,
+                            fullName: name,
+                            radius: 20,
                           ),
                           const SizedBox(width: 12),
                           Expanded(

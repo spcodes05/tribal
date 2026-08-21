@@ -44,6 +44,10 @@ from .models import (
     UserReport,
 )
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 User = get_user_model()
 
 
@@ -79,18 +83,29 @@ class RegisterView(APIView):
 
             # Send the verification email.
             # In development this prints to the terminal.
+            email_sent = True
             try:
                 send_verification_email(user)
-            except Exception as e:
-                # Log the error but don't fail registration.
-                # The user can request a new verification email later.
-                print(f"[WARNING] Failed to send verification email: {e}")
+            except Exception:
+                email_sent = False
+                logger.warning(
+                    "Failed to send verification email to user_id=%s", user.id,
+                    exc_info=True,
+                )
 
             tokens = get_tokens_for_user(user)
 
+            message = (
+                "Registration successful. Please check your email to verify your account."
+                if email_sent
+                else "Registration successful, but we couldn't send the verification "
+                     "email right now. Use 'Resend verification email' to try again."
+            )
+
             return Response(
                 {
-                    "message": "Registration successful. Please check your email to verify your account.",
+                    "message": message,
+                    "email_sent": email_sent,
                     "user": {
                         "id": user.id,
                         "full_name": user.full_name,
@@ -101,8 +116,6 @@ class RegisterView(APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ─────────────────────────────────────────────
@@ -206,11 +219,13 @@ class ResendVerificationView(APIView):
             )
 
         user.generate_verification_token()
-
         try:
             send_verification_email(user)
-        except Exception as e:
-            print(f"[WARNING] Failed to send verification email: {e}")
+        except Exception:
+            logger.warning(
+                "Failed to resend verification email to user_id=%s", user.id,
+                exc_info=True,
+            )
 
         return generic_response
 

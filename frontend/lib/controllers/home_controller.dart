@@ -139,6 +139,49 @@ class HomeController extends ChangeNotifier {
     }
   }
 
+  Future<ActivityDetailModel?> updateActivity(int id, Map<String, dynamic> data) async {
+    _isCreating = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final updated = await EventsService.instance.updateActivity(id, data);
+      _activityDetail = updated;
+      _isCreating = false;
+      loadHomeFeed();
+      notifyListeners();
+      return updated;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isCreating = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  bool _isDeleting = false;
+  bool get isDeleting => _isDeleting;
+
+  Future<bool> deleteActivity(int id) async {
+    _isDeleting = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await EventsService.instance.deleteActivity(id);
+      if (_activityDetail?.id == id) _activityDetail = null;
+      _isDeleting = false;
+      loadHomeFeed();
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isDeleting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // ── Search ─────────────────────────────────────────────────────────────────
   List<ActivityCardModel> _searchActivities = [];
   List<ActivityCardModel> get searchActivities => _searchActivities;

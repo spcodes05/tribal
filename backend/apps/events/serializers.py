@@ -202,6 +202,17 @@ class CreateActivitySerializer(serializers.ModelSerializer):
             activity.tags.set(Interest.objects.filter(id__in=tag_ids))
         return activity
 
+    def update(self, instance, validated_data):
+        # tag_ids is write-only and not a real model field on Activity, so
+        # the default ModelSerializer.update() would silently drop it —
+        # pop it out and apply it explicitly, same as create() does.
+        tag_ids = validated_data.pop('tag_ids', None)
+        activity = super().update(instance, validated_data)
+        if tag_ids is not None:
+            from apps.users.models import Interest
+            activity.tags.set(Interest.objects.filter(id__in=tag_ids))
+        return activity
+
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 
