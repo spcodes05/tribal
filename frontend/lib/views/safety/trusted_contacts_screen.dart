@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:flutter/foundation.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/trusted_contacts_service.dart';
 import 'package:dio/dio.dart';
@@ -42,6 +42,7 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     setState(() => _isLoadingContacts = true);
     try {
       final contacts = await TrustedContactsService.instance.getTrustedContacts();
+      debugPrint('RAW CONTACTS: $contacts');   // <-- ADD THIS LINE
       if (mounted) setState(() => _contacts = contacts);
     } catch (_) {
       if (mounted) {

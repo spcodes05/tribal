@@ -12,6 +12,7 @@ import '../../core/network/api_config.dart';
 import '../../services/location_service.dart';
 import '../../services/trusted_contacts_service.dart';
 import '../../widgets/tribal_bottom_nav.dart';
+import '../../widgets/user_avatar.dart';
 
 class SafetyScreen extends StatefulWidget {
   const SafetyScreen({super.key});
@@ -24,6 +25,7 @@ class _SafetyScreenState extends State<SafetyScreen> {
   bool _isActivating = false;
   bool _isLocationSharing = false;
   List<Map<String, dynamic>> _trustedContacts = [];
+
   int get _trustedContactsCount => _trustedContacts.length;
 
 
@@ -41,7 +43,8 @@ class _SafetyScreenState extends State<SafetyScreen> {
 
   Future<void> _fetchTrustedContacts() async {
     try {
-      final contacts = await TrustedContactsService.instance.getTrustedContacts();
+      final contacts = await TrustedContactsService.instance
+          .getTrustedContacts();
       if (mounted) setState(() => _trustedContacts = contacts);
     } catch (_) {
       // Non-critical — keep default empty list
@@ -69,7 +72,8 @@ class _SafetyScreenState extends State<SafetyScreen> {
         LocationService.instance.stopLocationSharing();
       }
       if (mounted) {
-        setState(() => _isLocationSharing = LocationService.instance.isLocationSharing);
+        setState(() =>
+        _isLocationSharing = LocationService.instance.isLocationSharing);
       }
     } on DioException catch (e) {
       if (!mounted) return;
@@ -84,7 +88,6 @@ class _SafetyScreenState extends State<SafetyScreen> {
       if (mounted) setState(() => _isTogglingLocation = false);
     }
   }
-
 
 
   Future<void> _handleSOS() async {
@@ -102,7 +105,8 @@ class _SafetyScreenState extends State<SafetyScreen> {
           ? response.data['message'] as String
           : 'SOS activated. Your trusted contacts have been notified.';
 
-      final sosmessage = (response.data is Map && response.data['message'] != null)
+      final sosmessage = (response.data is Map &&
+          response.data['message'] != null)
           ? response.data['message'] as String
           : 'SOS activated. Your trusted contacts have been notified.';
 
@@ -382,12 +386,22 @@ class _SafetyScreenState extends State<SafetyScreen> {
                     const SizedBox(height: 14),
                     Row(
                       children: [
-                        ..._trustedContacts.take(3).map(
-                              (_) => Padding(
+                        ..._trustedContacts.take(3).map((contact) {
+                          final detail = contact['trusted_user_detail'] as Map<
+                              String,
+                              dynamic>?;
+                          final name = detail?['full_name'] as String? ??
+                              'Unknown';
+                          final profileImage = detail?['profile_image'] as String?;
+                          return Padding(
                             padding: const EdgeInsets.only(right: 8),
-                            child: _avatarPlaceholder(),
-                          ),
-                        ),
+                            child: UserAvatar(
+                              imageUrl: profileImage,
+                              fullName: name,
+                              radius: 18, // 36px diameter, matches old placeholder size
+                            ),
+                          );
+                        }),
                         if (_trustedContacts.length > 3)
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
@@ -432,7 +446,6 @@ class _SafetyScreenState extends State<SafetyScreen> {
               ),
 
               const SizedBox(height: 16),
-
 
 
               if (_isLocationSharing) ...[
@@ -481,16 +494,5 @@ class _SafetyScreenState extends State<SafetyScreen> {
       bottomNavigationBar: const TribalBottomNav(),
     );
   }
-
-  // Small avatar placeholder used only inside this screen — not a separate widget file
-  Widget _avatarPlaceholder() {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Color(0xFFD9D9D9),
-      ),
-    );
-  }
 }
+
