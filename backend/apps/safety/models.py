@@ -64,6 +64,31 @@ class UserLocation(models.Model):
         return f"UserLocation({self.user_id})"
 
 
+class LiveLocationSession(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        ENDED = "ENDED", "Ended"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="live_location_sessions"
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.ACTIVE
+    )
+    latitude = models.DecimalField(max_digits=18, decimal_places=12, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=18, decimal_places=12, null=True, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"LiveLocationSession({self.user_id}, {self.status})"
+
+
 class SOSSession(models.Model):
     class Status(models.TextChoices):
         ACTIVE = "ACTIVE", "Active"

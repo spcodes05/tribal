@@ -9,6 +9,20 @@ class MessageSerializer(serializers.ModelSerializer):
     """Serializes individual chat messages."""
 
     sender_id = serializers.IntegerField(source="sender.id", read_only=True)
+    live_location_id = serializers.IntegerField(
+        source="live_location.id", read_only=True, default=None
+    )
+    live_location_status = serializers.CharField(
+        source="live_location.status", read_only=True, default=None
+    )
+    live_location_latitude = serializers.DecimalField(
+        source="live_location.latitude", max_digits=18, decimal_places=12,
+        read_only=True, default=None
+    )
+    live_location_longitude = serializers.DecimalField(
+        source="live_location.longitude", max_digits=18, decimal_places=12,
+        read_only=True, default=None
+    )
 
     class Meta:
         model = Message
@@ -17,11 +31,20 @@ class MessageSerializer(serializers.ModelSerializer):
             "chat",
             "sender_id",
             "content",
+            "message_type",
+            "live_location_id",
+            "live_location_status",
+            "live_location_latitude",
+            "live_location_longitude",
             "timestamp",
             "is_read",
             "edited_at",
         ]
-        read_only_fields = ["id", "timestamp", "is_read", "edited_at"]
+        read_only_fields = [
+            "id", "message_type", "live_location_id", "live_location_status",
+            "live_location_latitude", "live_location_longitude",
+            "timestamp", "is_read", "edited_at",
+        ]
 
 
 class ChatSerializer(serializers.ModelSerializer):

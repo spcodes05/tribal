@@ -103,6 +103,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Handler for the 'chat_message' group event type; pushes to the client."""
         await self.send(text_data=json.dumps(event))
 
+    async def live_location_update(self, event: dict) -> None:
+        """
+        Handler for the 'live_location_update' group event type (see
+        apps/safety/views.py UserLocationUpdateView). Pushed to the client
+        as-is; no new Message is created for these — they only carry the
+        latest coordinates for an existing live-location session/card.
+        """
+        await self.send(text_data=json.dumps(event))
+
+    async def live_location_ended(self, event: dict) -> None:
+        """Handler for the 'live_location_ended' group event type (see
+        apps/safety/views.py SafetySettingsView.update)."""
+        await self.send(text_data=json.dumps(event))
+
     async def _send_error(self, detail: str) -> None:
         await self.send(text_data=json.dumps({"type": "error", "detail": detail}))
 

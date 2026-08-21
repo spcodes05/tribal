@@ -78,6 +78,10 @@ class Message(models.Model):
     their parent Chat is deleted (via CASCADE).
     """
 
+    class MessageType(models.TextChoices):
+        TEXT = "TEXT", "Text"
+        LIVE_LOCATION = "LIVE_LOCATION", "Live Location"
+
     chat = models.ForeignKey(
         Chat,
         related_name="messages",
@@ -89,6 +93,22 @@ class Message(models.Model):
         on_delete=models.CASCADE,
     )
     content = models.TextField()
+    message_type = models.CharField(
+        max_length=20,
+        choices=MessageType.choices,
+        default=MessageType.TEXT,
+    )
+    # Nullable, cross-app reference to the live-location session this
+    # message represents (only set when message_type=LIVE_LOCATION).
+    # ONE message is created per session — coordinate updates mutate the
+    # referenced LiveLocationSession, they never create new Message rows.
+    live_location = models.ForeignKey(
+        "safety.LiveLocationSession",
+        on_delete=models.SET_NULL,
+        related_name="messages",
+        null=True,
+        blank=True,
+    )
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
     edited_at = models.DateTimeField(null=True, blank=True)

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SafetySettings, TrustedContact, UserLocation, SOSSession
+from .models import SafetySettings, TrustedContact, UserLocation, SOSSession, LiveLocationSession
 from django.contrib.auth import get_user_model
 
 
@@ -71,6 +71,22 @@ class UserLocationSerializer(serializers.ModelSerializer):
             "longitude",
         ]
         read_only_fields = ["id"]
+
+
+class LiveLocationSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LiveLocationSession
+        fields = [
+            "id",
+            "user",
+            "status",
+            "latitude",
+            "longitude",
+            "started_at",
+            "updated_at",
+            "ended_at",
+        ]
+        read_only_fields = ["id", "user", "started_at", "updated_at"]
 
 
 class SOSSessionSerializer(serializers.ModelSerializer):

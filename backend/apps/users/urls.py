@@ -15,6 +15,7 @@ from .views import (
     MutualActivitiesView,
     BlockUserView,
     ReportUserView,
+    UserSearchView,
 )
 from .views import set_gender, set_interests
 
@@ -38,4 +39,5 @@ urlpatterns = [
     path("<int:user_id>/mutual-activities/", MutualActivitiesView.as_view(), name="user-mutual-activities"),
     path("<int:user_id>/block/", BlockUserView.as_view(), name="user-block"),
     path("<int:user_id>/report/", ReportUserView.as_view(), name="user-report"),
+    path("search/", UserSearchView.as_view(), name="user-search"),
 ]

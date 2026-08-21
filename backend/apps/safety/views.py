@@ -5,11 +5,28 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from apps.users.models import CustomUser
 from apps.chat.models import Chat, Message
-from .models import SafetySettings, TrustedContact, UserLocation, SOSSession
+from .models import SafetySettings, TrustedContact, UserLocation, SOSSession, LiveLocationSession
 from .serializers import SafetySettingsSerializer, TrustedContactSerializer, UserLocationSerializer, SOSSessionSerializer
 from django.utils import timezone
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 from apps.events.models import Notification
+
+
+def _broadcast_to_chat(chat_id, payload):
+    """
+    Send a payload to the existing per-chat WebSocket group
+    (`chat_<chat_id>`, see apps/chat/consumers.py / routing.py). Only
+    users currently connected to that chat's group receive it — group
+    membership is already gated by ChatConsumer.connect()'s participant
+    check, so this reuses the existing WS auth/authorization as-is.
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    async_to_sync(channel_layer.group_send)(f"chat_{chat_id}", payload)
 
 class SafetySettingsView(generics.RetrieveUpdateAPIView):
     serializer_class = SafetySettingsSerializer
@@ -20,7 +37,9 @@ class SafetySettingsView(generics.RetrieveUpdateAPIView):
         return obj
 
     def update(self, request, *args, **kwargs):
-        if request.data.get("live_location_enabled") is True:
+        requested_value = request.data.get("live_location_enabled")
+
+        if requested_value is True:
             has_trusted_contact = TrustedContact.objects.filter(
                 owner=request.user
             ).exists()
@@ -29,7 +48,82 @@ class SafetySettingsView(generics.RetrieveUpdateAPIView):
                     {"detail": "Add at least one trusted contact before enabling live location."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            self._start_live_location(request.user)
+        elif requested_value is False:
+            self._end_live_location(request.user)
+
         return super().update(request, *args, **kwargs)
+
+    def _start_live_location(self, user):
+        """
+        Create ONE LiveLocationSession (idempotent — reuses an existing
+        active session instead of duplicating it) and send ONE
+        live-location card message per trusted contact. Coordinate
+        updates after this never create additional messages — see
+        UserLocationUpdateView.
+        """
+        session = LiveLocationSession.objects.filter(
+            user=user, status=LiveLocationSession.Status.ACTIVE
+        ).first()
+        if session:
+            return session
+
+        session = LiveLocationSession.objects.create(
+            user=user, status=LiveLocationSession.Status.ACTIVE
+        )
+
+        trusted_contacts = TrustedContact.objects.filter(owner=user)
+        for contact in trusted_contacts:
+            chat = Chat.get_or_create_chat(user, contact.trusted_user)
+            message = Message.objects.create(
+                chat=chat,
+                sender=user,
+                content="📍 Live Location",
+                message_type=Message.MessageType.LIVE_LOCATION,
+                live_location=session,
+            )
+            _broadcast_to_chat(chat.id, {
+                "type": "chat_message",
+                "message_id": message.id,
+                "chat_id": chat.id,
+                "sender_id": user.id,
+                "content": message.content,
+                "message_type": message.message_type,
+                "live_location_id": session.id,
+                "live_location_status": session.status,
+                "latitude": None,
+                "longitude": None,
+                "timestamp": message.timestamp.isoformat(),
+            })
+
+        return session
+
+    def _end_live_location(self, user):
+        """
+        End the user's active LiveLocationSession (if any) and notify
+        connected trusted contacts via WebSocket. The historical chat
+        message referencing the session is left untouched.
+        """
+        session = LiveLocationSession.objects.filter(
+            user=user, status=LiveLocationSession.Status.ACTIVE
+        ).first()
+        if not session:
+            return None
+
+        session.status = LiveLocationSession.Status.ENDED
+        session.ended_at = timezone.now()
+        session.save(update_fields=["status", "ended_at", "updated_at"])
+
+        trusted_contacts = TrustedContact.objects.filter(owner=user)
+        for contact in trusted_contacts:
+            chat = Chat.get_or_create_chat(user, contact.trusted_user)
+            _broadcast_to_chat(chat.id, {
+                "type": "live_location_ended",
+                "live_location_id": session.id,
+                "chat_id": chat.id,
+            })
+
+        return session
 
 class TrustedContactListCreateView(generics.ListCreateAPIView):
     serializer_class = TrustedContactSerializer
@@ -73,25 +167,30 @@ class UserLocationUpdateView(generics.GenericAPIView):
         },
     )
 
-        trusted_contacts = TrustedContact.objects.filter(owner=request.user)
+        # If live location is ON, update the SAME session's coordinates and
+        # broadcast over the existing per-chat WebSocket group. This never
+        # creates a new chat Message — the ONE live-location card created in
+        # SafetySettingsView._start_live_location is reused for the whole
+        # session.
+        session = LiveLocationSession.objects.filter(
+            user=request.user, status=LiveLocationSession.Status.ACTIVE
+        ).first()
 
-        print("USER SENDING LOCATION:", request.user.id)
-        print("TRUSTED CONTACT COUNT:", trusted_contacts.count())
-        for contact in trusted_contacts:
-            chat = Chat.get_or_create_chat(request.user, contact.trusted_user)
-            print("CHAT ID:", chat.id)
-            Message.objects.create(
-                chat=chat,
-                sender=request.user,
-                content=(
-                    "📍 Live Location Update\n"
-                    f"Latitude: {location.latitude}\n"
-                    f"Longitude: {location.longitude}\n"
-                    "This is an automatic location update."
-                ),
-            )
+        if session:
+            session.latitude = location.latitude
+            session.longitude = location.longitude
+            session.save(update_fields=["latitude", "longitude", "updated_at"])
 
-            print("LOCATION MESSAGE CREATED")
+            trusted_contacts = TrustedContact.objects.filter(owner=request.user)
+            for contact in trusted_contacts:
+                chat = Chat.get_or_create_chat(request.user, contact.trusted_user)
+                _broadcast_to_chat(chat.id, {
+                    "type": "live_location_update",
+                    "live_location_id": session.id,
+                    "chat_id": chat.id,
+                    "latitude": str(location.latitude),
+                    "longitude": str(location.longitude),
+                })
 
         return Response(
              self.get_serializer(location).data,
