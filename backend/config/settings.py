@@ -196,6 +196,13 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Tribal <noreply@tribal.app
 # In production this would be: https://yourdomain.com
 FRONTEND_URL = "http://localhost:3000"
 
+# ─────────────────────────────────────────────
+# SUPABASE STORAGE (profile pictures)
+# ─────────────────────────────────────────────
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_PROFILE_BUCKET = os.getenv("SUPABASE_PROFILE_BUCKET", "profile-pictures")
+
 REST_FRAMEWORK = {
     # Sets JWT as the default authentication method for all API views.
     # Any view using DRF's permission classes will automatically check
