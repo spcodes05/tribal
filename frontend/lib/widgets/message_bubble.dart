@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/constants/app_colors.dart';
+import '../core/routes/app_routes.dart';
 import '../models/chat_model.dart';
+import '../views/chat/view_location_screen.dart';
 import 'location_card.dart';
 
 /// A single chat bubble.
@@ -18,12 +21,20 @@ class MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (message.isLiveLocation) {
+      final lat = message.liveLocationLatitude;
+      final lng = message.liveLocationLongitude;
       return Align(
         alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
         child: LocationCard(
-          latitude: message.liveLocationLatitude,
-          longitude: message.liveLocationLongitude,
+          latitude: lat,
+          longitude: lng,
           isActive: message.isLiveLocationActive,
+          onViewMap: (lat != null && lng != null)
+              ? () => context.push(
+            AppRoutes.viewLocation,
+            extra: ViewLocationArgs(latitude: lat, longitude: lng),
+          )
+              : null,
         ),
       );
     }

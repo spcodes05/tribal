@@ -51,6 +51,7 @@ import '../../views/profile/other_user_profile_screen.dart';
 import '../../views/profile/profile_settings_screen.dart';
 import '../../views/profile/mutual_activities_screen.dart';
 import '../../models/profile_model.dart';
+import '../../views/chat/view_location_screen.dart';
 
 
 class AppRoutes {
@@ -83,6 +84,7 @@ class AppRoutes {
   // ── Chat ──────────────────────────────────────────────────────────────────
   static const String chatList             = '/chat';
   static const String chatConversation     = '/chat/:id';
+  static const String viewLocation     = '/view-location';
 
   // ── Roommate ──────────────────────────────────────────────────────────────
   static const String roommateHome             = '/roommate';
@@ -227,6 +229,13 @@ class AppRoutes {
                 ),
           );
         },
+      ),
+      GoRoute(
+        path: viewLocation,
+        name: 'viewLocation',
+        builder: (_, state) => ViewLocationScreen(
+          args: state.extra as ViewLocationArgs,
+        ),
       ),
 
 
