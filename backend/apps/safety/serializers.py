@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import SafetySettings, TrustedContact, UserLocation, SOSSession, LiveLocationSession
 from django.contrib.auth import get_user_model
+from apps.users.serializer_mixins import ProfileImageMixin
 
 
 class SafetySettingsSerializer(serializers.ModelSerializer):
@@ -16,15 +17,19 @@ class SafetySettingsSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "user", "created_at", "updated_at"]
 
 
-class TrustedUserDetailSerializer(serializers.ModelSerializer):
+class TrustedUserDetailSerializer(ProfileImageMixin, serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = get_user_model()
-        fields = ["id", "full_name", "email"]
+        fields = ["id", "full_name", "email", "profile_image"]
 
     def get_full_name(self, obj):
        return obj.full_name
+
+    def get_profile_image(self, obj):
+        return self.build_profile_image_url(obj)
 
 
 class TrustedContactSerializer(serializers.ModelSerializer):

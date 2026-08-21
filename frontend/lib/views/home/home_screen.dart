@@ -133,10 +133,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _GreetingHeader extends StatelessWidget {
   final HomeController ctrl;
+
   const _GreetingHeader({required this.ctrl});
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = context.watch<CurrentUserController>();
+    final userName = currentUser.fullName?.trim();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Row(
@@ -148,19 +152,35 @@ class _GreetingHeader extends StatelessWidget {
               child: UserAvatar.me(radius: 24),
             ),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Welcome back',
-                    style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
-                Text('Hey there 👋',
-                    style: GoogleFonts.poppins(
-                        fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text(
+                  'Welcome back',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+
+                Text(
+                  userName != null && userName.isNotEmpty
+                      ? 'Hey, $userName 👋'
+                      : 'Hey 👋',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
               ],
             ),
           ),
+
           // Bell with unread badge
           GestureDetector(
             onTap: () => context.push(AppRoutes.notifications),
@@ -174,9 +194,13 @@ class _GreetingHeader extends StatelessWidget {
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.notifications_outlined,
-                      color: AppColors.textPrimary, size: 22),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: AppColors.textPrimary,
+                    size: 22,
+                  ),
                 ),
+
                 if (ctrl.unreadNotifications > 0)
                   Positioned(
                     top: -2,
@@ -188,19 +212,28 @@ class _GreetingHeader extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                       child: Text(
-                        ctrl.unreadNotifications > 9 ? '9+' : '${ctrl.unreadNotifications}',
+                        ctrl.unreadNotifications > 9
+                            ? '9+'
+                            : '${ctrl.unreadNotifications}',
                         style: GoogleFonts.poppins(
-                            fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white),
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   )
                 else
                   Positioned(
-                    top: 8, right: 8,
+                    top: 8,
+                    right: 8,
                     child: Container(
-                      width: 8, height: 8,
+                      width: 8,
+                      height: 8,
                       decoration: const BoxDecoration(
-                          color: AppColors.primary, shape: BoxShape.circle),
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
               ],
