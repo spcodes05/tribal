@@ -132,10 +132,18 @@ class _ActivityListCard extends StatelessWidget {
                             const Icon(Icons.location_on_rounded,
                                 color: Colors.white70, size: 12),
                             const SizedBox(width: 3),
-                            Text(activity.location,
+                            Expanded(
+                              child: Text(
+                                activity.location,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
-                                    fontSize: 11, color: Colors.white70)),
-                          ],
+                                  fontSize: 11,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                        ),
+                        ],
                         ),
                         const SizedBox(height: 4),
                         Row(
