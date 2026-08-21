@@ -62,6 +62,11 @@ class HomeController extends ChangeNotifier {
     } on ApiException catch (e) {
       _error = e.message;
       _status = HomeStatus.error;
+    } catch (e) {
+      // Catch-all so any unexpected error (e.g. a parsing bug) surfaces as
+      // a retryable error state instead of leaving isLoading stuck forever.
+      _error = 'Something went wrong loading this activity.';
+      _status = HomeStatus.error;
     } finally {
       notifyListeners();
     }

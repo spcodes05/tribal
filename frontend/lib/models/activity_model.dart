@@ -97,6 +97,15 @@ class ActivityCardModel {
 }
 
 /// Full model used on the activity detail screen.
+// Safely parses a value that may arrive as a num, a String (Django
+// DecimalField is serialized as a string by DRF), or null.
+double _parseDouble(dynamic value, [double fallback = 0.0]) {
+  if (value == null) return fallback;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value) ?? fallback;
+  return fallback;
+}
+
 class ActivityDetailModel {
   final int id;
   final String title;
@@ -104,6 +113,8 @@ class ActivityDetailModel {
   final String? imageUrl;
   final String location;
   final String meetingPoint;
+  final double latitude;
+  final double longitude;
   final String date;
   final String time;
   final bool isWomenOnly;
@@ -115,6 +126,7 @@ class ActivityDetailModel {
   final ActivityHost host;
   final List<ActivityMemberModel> recentMembers;
   final bool hasJoined;
+  final int? matchPercent;
 
   const ActivityDetailModel({
     required this.id,
@@ -123,6 +135,8 @@ class ActivityDetailModel {
     this.imageUrl,
     required this.location,
     required this.meetingPoint,
+    required this.latitude,
+    required this.longitude,
     required this.date,
     required this.time,
     required this.isWomenOnly,
@@ -134,6 +148,7 @@ class ActivityDetailModel {
     required this.host,
     required this.recentMembers,
     required this.hasJoined,
+    this.matchPercent,
   });
 
   factory ActivityDetailModel.fromJson(Map<String, dynamic> json) =>
@@ -144,6 +159,8 @@ class ActivityDetailModel {
         imageUrl: json['image_url'] as String?,
         location: json['location'] as String? ?? '',
         meetingPoint: json['meeting_point'] as String? ?? '',
+        latitude: _parseDouble(json['latitude']),
+        longitude: _parseDouble(json['longitude']),
         date: json['date'] as String? ?? '',
         time: json['time'] as String? ?? '',
         isWomenOnly: json['is_women_only'] as bool? ?? false,
@@ -157,17 +174,20 @@ class ActivityDetailModel {
             .map((e) => ActivityMemberModel.fromJson(e as Map<String, dynamic>))
             .toList(),
         hasJoined: json['has_joined'] as bool? ?? false,
+        matchPercent: json['match_percent'] as int?,
       );
 
   ActivityDetailModel copyWith({bool? hasJoined, int? memberCount}) =>
       ActivityDetailModel(
         id: id, title: title, description: description, imageUrl: imageUrl,
-        location: location, meetingPoint: meetingPoint, date: date, time: time,
+        location: location, meetingPoint: meetingPoint,
+        latitude: latitude, longitude: longitude, date: date, time: time,
         isWomenOnly: isWomenOnly, isAccessible: isAccessible, isFree: isFree,
         memberCount: memberCount ?? this.memberCount,
         maxMembers: maxMembers, isFull: isFull, host: host,
         recentMembers: recentMembers,
         hasJoined: hasJoined ?? this.hasJoined,
+        matchPercent: matchPercent,
       );
 }
 
@@ -280,8 +300,8 @@ class ActivityPinModel {
       ActivityPinModel(
         id: json['id'] as int,
         title: json['title'] as String,
-        latitude: (json['latitude'] as num).toDouble(),
-        longitude: (json['longitude'] as num).toDouble(),
+        latitude: _parseDouble(json['latitude']),
+        longitude: _parseDouble(json['longitude']),
         location: json['location'] as String? ?? '',
         date: json['date'] as String? ?? '',
         time: json['time'] as String? ?? '',

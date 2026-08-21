@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 
 from .models import Activity, ActivityMember, Notification
-from .recommendations import rank_activities, rank_people
+from .recommendations import rank_activities, rank_people, score_activity
 from .serializers import (
     ActivityCardSerializer,
     ActivityDetailSerializer,
@@ -163,13 +163,40 @@ class ActivityDetailView(APIView):
             activity = (
                 Activity.objects
                 .select_related('host')
-                .prefetch_related('members__user', 'tags', 'host__interests')
+                .prefetch_related(
+                    'members__user__interests', 'tags', 'host__interests',
+                )
                 .get(pk=pk)
             )
         except Activity.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = ActivityDetailSerializer(activity, context={'request': request})
+        # Reuse the same scoring function the home feed / list / search use,
+        # so "match_percent" here is the real ActivityScore for this user,
+        # not a placeholder.
+        user = request.user
+        u_interests = set(user.interests.values_list('name', flat=True))
+        a_tags = set(activity.tags.values_list('name', flat=True))
+        members_interests = [
+            set(member.user.interests.values_list('name', flat=True))
+            for member in activity.members.all()
+        ]
+        score = score_activity(
+            user_interests=u_interests,
+            user_lat=user.latitude,
+            user_lon=user.longitude,
+            activity_tags=a_tags,
+            activity_member_count=activity.member_count,
+            activity_max_members=activity.max_members,
+            activity_lat=activity.latitude,
+            activity_lon=activity.longitude,
+            members_interests=members_interests,
+        )
+        match_percents = {activity.id: score['match_percent']}
+
+        serializer = ActivityDetailSerializer(
+            activity, context={'request': request, 'match_percents': match_percents},
+        )
         return Response(serializer.data)
 
 

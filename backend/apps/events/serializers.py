@@ -109,6 +109,7 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
     recent_members = serializers.SerializerMethodField()
     has_joined = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
+    match_percent = serializers.SerializerMethodField()
 
     def get_tags(self, obj):
         return list(obj.tags.values_list("name", flat=True))
@@ -123,6 +124,13 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return obj.members.filter(user=request.user).exists()
         return False
+
+    def get_match_percent(self, obj):
+        # Same pattern as ActivityListSerializer/SearchView: precomputed by
+        # the view via rank_activities/score_activity and passed in context,
+        # keyed by activity id. Falls back to None if not supplied.
+        match_percents = self.context.get('match_percents', {})
+        return match_percents.get(obj.id, None)
 
     class Meta:
         model = Activity
@@ -154,6 +162,7 @@ class ActivityDetailSerializer(serializers.ModelSerializer):
         "host",
         "recent_members",
         "has_joined",
+        "match_percent",
 
         "created_at",
         ]
