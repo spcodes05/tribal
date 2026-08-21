@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import '../core/network/api_client.dart';
 import '../models/activity_model.dart';
 import '../services/events_service.dart';
@@ -59,9 +59,6 @@ class ExploreController extends ChangeNotifier {
   List<ActivityCardModel> _allActivities = [];
   List<ActivityCardModel> _filteredActivities = [];
   List<ActivityCardModel> get filteredActivities => _filteredActivities;
-
-  Set<Marker> _markers = {};
-  Set<Marker> get markers => _markers;
 
   ActivityPinModel? _selectedPin;
   ActivityPinModel? get selectedPin => _selectedPin;
@@ -130,7 +127,6 @@ class ExploreController extends ChangeNotifier {
         isWomenOnly: _filter.isWomenOnly ? true : null,
         thisWeekend: _filter.thisWeekend ? true : null,
       );
-      _buildMarkers();
     } on ApiException catch (e) {
       _error = e.message;
     } catch (_) {}
@@ -179,17 +175,6 @@ class ExploreController extends ChangeNotifier {
       }
       return true;
     }).toList();
-  }
-
-  void _buildMarkers() {
-    _markers = _pins.map((pin) {
-      return Marker(
-        markerId: MarkerId('activity_${pin.id}'),
-        position: LatLng(pin.latitude, pin.longitude),
-        onTap: () => selectPin(pin),
-        infoWindow: InfoWindow(title: pin.pinLabel),
-      );
-    }).toSet();
   }
 
   void selectPin(ActivityPinModel? pin) {

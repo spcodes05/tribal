@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import '../core/constants/app_colors.dart';
 
 /// "Live Location" card shown inside a chat conversation.
 ///
-/// Reuses the same `google_maps_flutter` package/API-key configuration as
-/// the Explore page (see views/explore/explore_screen.dart) — no new key,
-/// no new map config. The marker moves as [latitude]/[longitude] change;
-/// the caller (MessageBubble, driven by ConversationController) is
-/// responsible for passing updated coordinates as WebSocket events arrive,
-/// this widget only renders whatever it's given.
+/// Uses flutter_map with free OpenStreetMap tiles (no API key, no billing)
+/// — same tile source as the Explore page and location picker (see
+/// views/explore/explore_screen.dart, views/events/location_picker_screen.dart).
+/// The marker moves as [latitude]/[longitude] change; the caller
+/// (MessageBubble, driven by ConversationController) is responsible for
+/// passing updated coordinates as WebSocket events arrive, this widget only
+/// renders whatever it's given.
 class LocationCard extends StatefulWidget {
   final double? latitude;
   final double? longitude;
@@ -30,7 +32,8 @@ class LocationCard extends StatefulWidget {
 }
 
 class _LocationCardState extends State<LocationCard> {
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
+  bool _mapReady = false;
 
   @override
   void didUpdateWidget(covariant LocationCard oldWidget) {
@@ -40,17 +43,9 @@ class _LocationCardState extends State<LocationCard> {
     if (lat == null || lng == null) return;
 
     final moved = oldWidget.latitude != lat || oldWidget.longitude != lng;
-    if (moved && _mapController != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLng(LatLng(lat, lng)),
-      );
+    if (moved && _mapReady) {
+      _mapController.move(LatLng(lat, lng), _mapController.camera.zoom);
     }
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
   }
 
   @override
@@ -58,7 +53,7 @@ class _LocationCardState extends State<LocationCard> {
     final hasCoords = widget.latitude != null && widget.longitude != null;
     final statusLabel = widget.isActive ? 'LIVE' : 'Ended';
     final statusColor =
-        widget.isActive ? const Color(0xFF3FCE6B) : AppColors.textSecondary;
+    widget.isActive ? const Color(0xFF3FCE6B) : AppColors.textSecondary;
 
     return Container(
       width: 260,
@@ -125,39 +120,47 @@ class _LocationCardState extends State<LocationCard> {
             width: double.infinity,
             child: hasCoords
                 ? IgnorePointer(
-                    // Card map is a preview only — full interaction happens
-                    // via onViewMap (tap "View on Map"), same convention as
-                    // the previous placeholder implementation.
-                    ignoring: true,
-                    child: GoogleMap(
-                      initialCameraPosition: CameraPosition(
-                        target: LatLng(widget.latitude!, widget.longitude!),
-                        zoom: 15,
-                      ),
-                      onMapCreated: (c) => _mapController = c,
-                      markers: {
-                        Marker(
-                          markerId: const MarkerId('live_location'),
-                          position: LatLng(widget.latitude!, widget.longitude!),
-                        ),
-                      },
-                      myLocationButtonEnabled: false,
-                      zoomControlsEnabled: false,
-                      mapToolbarEnabled: false,
-                      liteModeEnabled: true,
-                    ),
-                  )
-                : Container(
-                    color: AppColors.surface,
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Waiting for location…',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+              // Card map is a preview only — full interaction happens
+              // via onViewMap (tap "View on Map"), same convention as
+              // the previous implementation.
+              ignoring: true,
+              child: FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: LatLng(widget.latitude!, widget.longitude!),
+                  initialZoom: 15,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.none,
                   ),
+                  onMapReady: () => _mapReady = true,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.tribal.app',
+                  ),
+                  MarkerLayer(markers: [
+                    Marker(
+                      point: LatLng(widget.latitude!, widget.longitude!),
+                      width: 30, height: 30,
+                      child: const Icon(Icons.location_pin,
+                          color: AppColors.primary, size: 30),
+                    ),
+                  ]),
+                ],
+              ),
+            )
+                : Container(
+              color: AppColors.surface,
+              alignment: Alignment.center,
+              child: Text(
+                'Waiting for location…',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
           ),
           InkWell(
             onTap: hasCoords ? widget.onViewMap : null,
