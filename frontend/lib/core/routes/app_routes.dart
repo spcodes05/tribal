@@ -23,6 +23,7 @@ import '../../views/events/search_screen.dart';
 import '../../views/events/see_all_screen.dart';
 import '../../views/chat/chat_list_screen.dart';
 import '../../views/chat/chat_screen.dart';
+import '../../models/activity_model.dart';
 import '../../models/chat_model.dart';
 import '../../views/safety/safety_screen.dart';
 import '../../views/roommate/roommate_home_screen.dart';
@@ -151,7 +152,9 @@ class AppRoutes {
       GoRoute(
         path: createActivity,
         name: 'createActivity',
-        builder: (_, __) => const CreateActivityScreen(),
+        builder: (_, state) => CreateActivityScreen(
+          editingActivity: state.extra as ActivityDetailModel?,
+        ),
       ),
       GoRoute(
         path: locationPicker,

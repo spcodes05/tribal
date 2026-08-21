@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 
 from .models import Activity, ActivityMember, Notification
 from .recommendations import rank_activities, rank_people, score_activity
+from .utils import filter_active, delete_expired_activities
 from .serializers import (
     ActivityCardSerializer,
     ActivityDetailSerializer,
@@ -38,8 +39,15 @@ class HomeFeedView(APIView):
     def get(self, request):
         user = request.user
 
+        # Opportunistic cleanup: this is the most frequently hit endpoint,
+        # so piggy-back the actual delete here. Cheap (single DELETE query)
+        # and means expired activities get purged without needing a task
+        # queue set up. The management command below handles it properly
+        # for deployments that do have cron/scheduling available.
+        delete_expired_activities()
+
         # ── Rank activities ──────────────────────────────────────────────────
-        activities_qs = (
+        activities_qs = filter_active(
             Activity.objects
             .select_related('host')
             .prefetch_related('members__user__interests', 'tags', 'host__interests')
@@ -115,7 +123,7 @@ class ActivityListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        activities_qs = (
+        activities_qs = filter_active(
             Activity.objects
             .select_related('host')
             .prefetch_related('members__user__interests', 'tags', 'host__interests')
@@ -198,6 +206,46 @@ class ActivityDetailView(APIView):
             activity, context={'request': request, 'match_percents': match_percents},
         )
         return Response(serializer.data)
+
+    def patch(self, request, pk):
+        """PATCH /api/events/activities/<id>/ — edit an activity. Host only."""
+        try:
+            activity = Activity.objects.select_related('host').get(pk=pk)
+        except Activity.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if activity.host_id != request.user.id:
+            return Response(
+                {'detail': 'Only the host can edit this activity.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = CreateActivitySerializer(
+            activity, data=request.data, partial=True,
+            context={'request': request},
+        )
+        if serializer.is_valid():
+            activity = serializer.save()
+            return Response(
+                ActivityDetailSerializer(activity, context={'request': request}).data,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        """DELETE /api/events/activities/<id>/ — delete an activity. Host only."""
+        try:
+            activity = Activity.objects.get(pk=pk)
+        except Activity.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if activity.host_id != request.user.id:
+            return Response(
+                {'detail': 'Only the host can delete this activity.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        activity.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Join / Leave ──────────────────────────────────────────────────────────────
@@ -303,7 +351,7 @@ class SearchView(APIView):
         if not q:
             return Response({'activities': [], 'people': []})
 
-        activities_qs = (
+        activities_qs = filter_active(
             Activity.objects
             .filter(Q(title__icontains=q) | Q(location__icontains=q))
             .select_related('host')
@@ -364,10 +412,10 @@ class ActivityMapView(APIView):
         from django.utils import timezone
         import datetime
 
-        qs = Activity.objects.filter(
+        qs = filter_active(Activity.objects.filter(
             latitude__isnull=False,
             longitude__isnull=False,
-        ).prefetch_related('tags', 'members')
+        )).prefetch_related('tags', 'members')
 
         # ── Filters ───────────────────────────────────────────────────────
         tag = request.query_params.get('tag')

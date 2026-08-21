@@ -127,6 +127,7 @@ class ActivityDetailModel {
   final List<ActivityMemberModel> recentMembers;
   final bool hasJoined;
   final int? matchPercent;
+  final List<String> tags;
 
   const ActivityDetailModel({
     required this.id,
@@ -149,6 +150,7 @@ class ActivityDetailModel {
     required this.recentMembers,
     required this.hasJoined,
     this.matchPercent,
+    this.tags = const [],
   });
 
   factory ActivityDetailModel.fromJson(Map<String, dynamic> json) =>
@@ -175,6 +177,7 @@ class ActivityDetailModel {
             .toList(),
         hasJoined: json['has_joined'] as bool? ?? false,
         matchPercent: json['match_percent'] as int?,
+        tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       );
 
   ActivityDetailModel copyWith({bool? hasJoined, int? memberCount}) =>
@@ -188,6 +191,7 @@ class ActivityDetailModel {
         recentMembers: recentMembers,
         hasJoined: hasJoined ?? this.hasJoined,
         matchPercent: matchPercent,
+        tags: tags,
       );
 }
 
