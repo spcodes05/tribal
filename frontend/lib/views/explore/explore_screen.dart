@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/explore_controller.dart';
 import '../../core/constants/app_colors.dart';
@@ -17,8 +18,7 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  GoogleMapController? _mapController;
-  bool _mapReady = false;
+  final MapController _mapController = MapController();
   final _sheetController = DraggableScrollableController();
 
   @override
@@ -31,7 +31,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   @override
   void dispose() {
-    if (_mapReady) _mapController?.dispose();
     _sheetController.dispose();
     super.dispose();
   }
@@ -48,16 +47,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               // ── Full-screen map ──────────────────────────────────────────
               _MapLayer(
                 ctrl: ctrl,
-                onMapCreated: (c) {
-                  _mapController = c;
-                  setState(() => _mapReady = true);
-                  // Animate to user location once map is ready
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    _mapController?.animateCamera(
-                      CameraUpdate.newLatLngZoom(ctrl.userLocation, 13),
-                    );
-                  });
-                },
+                mapController: _mapController,
               ),
 
               // ── Top search bar ───────────────────────────────────────────
@@ -72,6 +62,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ctrl: ctrl,
                 sheetController: _sheetController,
               ),
+
+              // ── Selected pin info card (replaces Google's InfoWindow) ─────
+              if (ctrl.selectedPin != null)
+                Positioned(
+                  left: 16, right: 16,
+                  bottom: MediaQuery.of(context).padding.bottom + 260,
+                  child: _SelectedPinCard(pin: ctrl.selectedPin!),
+                ),
 
               // ── Auto-Match Me FAB ─────────────────────────────────────────
               Positioned(
@@ -88,29 +86,133 @@ class _ExploreScreenState extends State<ExploreScreen> {
 }
 
 // =============================================================================
+// Selected pin info card
+// =============================================================================
+
+class _SelectedPinCard extends StatelessWidget {
+  final ActivityPinModel pin;
+  const _SelectedPinCard({required this.pin});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(AppRoutes.activityDetail, extra: pin.id),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10),
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 48, height: 48,
+                child: pin.imageUrl != null && pin.imageUrl!.isNotEmpty
+                    ? Image.network(pin.imageUrl!, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(color: AppColors.primary.withOpacity(0.15)))
+                    : Container(color: AppColors.primary.withOpacity(0.15)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(pin.title,
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text(pin.pinLabel,
+                      style: GoogleFonts.poppins(
+                          fontSize: 11, color: AppColors.textSecondary),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
 // Map layer
 // =============================================================================
 
 class _MapLayer extends StatelessWidget {
   final ExploreController ctrl;
-  final void Function(GoogleMapController) onMapCreated;
+  final MapController mapController;
 
-  const _MapLayer({required this.ctrl, required this.onMapCreated});
+  const _MapLayer({required this.ctrl, required this.mapController});
 
   @override
   Widget build(BuildContext context) {
-    return GoogleMap(
-      initialCameraPosition: CameraPosition(
-        target: ctrl.userLocation,
-        zoom: 13,
+    return FlutterMap(
+      mapController: mapController,
+      options: MapOptions(
+        initialCenter: ctrl.userLocation,
+        initialZoom: 13,
+        onTap: (_, __) => ctrl.selectPin(null), // dismiss selected pin
+        onMapReady: () {
+          // Give the map a moment to settle, then center on the user —
+          // mirrors the old GoogleMap "animate to user location" behavior.
+          Future.delayed(const Duration(milliseconds: 500), () {
+            mapController.move(ctrl.userLocation, 13);
+          });
+        },
       ),
-      onMapCreated: onMapCreated,
-      markers: ctrl.markers,
-      myLocationEnabled: true,
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: false,
-      mapToolbarEnabled: false,
-      onTap: (_) => ctrl.selectPin(null), // dismiss selected pin
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          // Required by OpenStreetMap's usage policy — identifies this app
+          // to the tile server, avoids being silently blocked.
+          userAgentPackageName: 'com.tribal.app',
+        ),
+        // My-location marker (blue dot) — no built-in "myLocationEnabled"
+        // flag like GoogleMap, so draw it ourselves.
+        MarkerLayer(markers: [
+          Marker(
+            point: ctrl.userLocation,
+            width: 20, height: 20,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+              ),
+            ),
+          ),
+        ]),
+        // Activity pins
+        MarkerLayer(
+          markers: ctrl.pins.map((pin) {
+            final isSelected = ctrl.selectedPin?.id == pin.id;
+            return Marker(
+              point: LatLng(pin.latitude, pin.longitude),
+              width: 40, height: 40,
+              child: GestureDetector(
+                onTap: () => ctrl.selectPin(pin),
+                child: Icon(
+                  Icons.location_on_rounded,
+                  color: isSelected ? AppColors.primary : Colors.redAccent,
+                  size: isSelected ? 40 : 34,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }

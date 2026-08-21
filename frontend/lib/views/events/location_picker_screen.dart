@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_dragmarker/flutter_map_dragmarker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/geocoding_service.dart';
 
@@ -35,8 +37,7 @@ class LocationPickerScreen extends StatefulWidget {
 }
 
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
-  GoogleMapController? _mapController;
-  bool _mapReady = false;
+  final MapController _mapController = MapController();
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
 
@@ -46,6 +47,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   String _addressLabel = '';
   bool _loadingGps = false;
   bool _loadingAddress = false;
+
+  // Best-effort "my location" dot on the map. Fetched once (not on every
+  // build like a FutureBuilder would) since it's just a visual reference,
+  // not something that needs to live-update while picking a location.
+  Position? _myPosition;
 
   // Autocomplete
   List<PlaceSuggestion> _suggestions = [];
@@ -58,11 +64,29 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _pinPosition = widget.initial ?? _defaultKathmandu;
     // Reverse geocode the initial position
     _reverseGeocode(_pinPosition.latitude, _pinPosition.longitude);
+    _loadMyPosition();
+  }
+
+  Future<void> _loadMyPosition() async {
+    try {
+      final perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        return; // don't prompt just for the dot — GPS button handles prompting
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 6),
+        ),
+      );
+      if (mounted) setState(() => _myPosition = pos);
+    } catch (_) {
+      // Silent — the dot just won't show, no functional impact.
+    }
   }
 
   @override
   void dispose() {
-    if (_mapReady) _mapController?.dispose();
     _searchController.dispose();
     _focusNode.dispose();
     _debounce?.cancel();
@@ -131,7 +155,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         _addressLabel = place.formattedAddress;
         _loadingAddress = false;
       });
-      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(newPos, 16));
+      _mapController.move(newPos, 16);
     } else {
       setState(() => _loadingAddress = false);
     }
@@ -162,7 +186,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       final newPos = LatLng(pos.latitude, pos.longitude);
       if (mounted) {
         _onPinMoved(newPos);
-        _mapController?.animateCamera(CameraUpdate.newLatLngZoom(newPos, 16));
+        _mapController.move(newPos, 16);
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -197,30 +221,60 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         children: [
 
           // ── Map ──────────────────────────────────────────────────────────
-          GoogleMap(
-            initialCameraPosition: CameraPosition(target: _pinPosition, zoom: 15),
-            onMapCreated: (c) { _mapController = c; setState(() => _mapReady = true); },
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            markers: {
-              Marker(
-                markerId: const MarkerId('pin'),
-                position: _pinPosition,
-                draggable: true,
-                onDragEnd: _onPinMoved,
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _pinPosition,
+              initialZoom: 15,
+              onLongPress: (_, pos) {
+                _onPinMoved(pos);
+                _mapController.move(pos, _mapController.camera.zoom);
+              },
+              // Dismiss suggestions when tapping the map
+              onTap: (_, __) {
+                _focusNode.unfocus();
+                setState(() => _showSuggestions = false);
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.tribal.app',
               ),
-            },
-            onLongPress: (pos) {
-              _onPinMoved(pos);
-              _mapController?.animateCamera(CameraUpdate.newLatLng(pos));
-            },
-            // Dismiss suggestions when tapping the map
-            onTap: (_) {
-              _focusNode.unfocus();
-              setState(() => _showSuggestions = false);
-            },
+              // My-location marker (blue dot)
+              if (_myPosition != null)
+                MarkerLayer(markers: [
+                  Marker(
+                    point: LatLng(_myPosition!.latitude, _myPosition!.longitude),
+                    width: 18, height: 18,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                      ),
+                    ),
+                  ),
+                ]),
+              // Draggable destination pin
+              DragMarkers(
+                markers: [
+                  DragMarker(
+                    point: _pinPosition,
+                    size: const Size(40, 40),
+                    offset: const Offset(0, -20),
+                    dragOffset: const Offset(0, -20),
+                    builder: (ctx, pos, isDragging) => Icon(
+                      Icons.location_pin,
+                      color: AppColors.primary,
+                      size: isDragging ? 46 : 40,
+                    ),
+                    onDragEnd: (details, newPos) => _onPinMoved(newPos),
+                  ),
+                ],
+              ),
+            ],
           ),
 
           // ── Top bar: back + search ────────────────────────────────────────

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/current_user_controller.dart';
 import '../../controllers/home_controller.dart';
@@ -670,26 +671,10 @@ class _MeetingPointCard extends StatelessWidget {
     required this.longitude,
   });
 
-  String? _staticMapUrl() {
-    final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty || (latitude == 0.0 && longitude == 0.0)) {
-      return null;
-    }
-    final center = '$latitude,$longitude';
-    return 'https://maps.googleapis.com/maps/api/staticmap'
-        '?center=$center'
-        '&zoom=15'
-        '&size=600x260'
-        '&scale=2'
-        '&maptype=roadmap'
-        '&markers=color:0x6A1A12%7C$center'
-        '&key=$apiKey';
-  }
+  bool get _hasCoords => latitude != 0.0 || longitude != 0.0;
 
   @override
   Widget build(BuildContext context) {
-    final mapUrl = _staticMapUrl();
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
@@ -697,12 +682,34 @@ class _MeetingPointCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Map or plain fallback
-            mapUrl != null
-                ? Image.network(
-              mapUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _mapFallback(),
+            // Map (free OSM tiles, no API key) or plain fallback
+            _hasCoords
+                ? IgnorePointer(
+              // Non-interactive — this is a preview, not a full map.
+              // Tapping opens navigation apps via _openInMaps below.
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: LatLng(latitude, longitude),
+                  initialZoom: 15,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.none,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.tribal.app',
+                  ),
+                  MarkerLayer(markers: [
+                    Marker(
+                      point: LatLng(latitude, longitude),
+                      width: 34, height: 34,
+                      child: const Icon(Icons.location_pin,
+                          color: AppColors.primary, size: 34),
+                    ),
+                  ]),
+                ],
+              ),
             )
                 : _mapFallback(),
 

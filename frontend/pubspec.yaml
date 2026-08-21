@@ -42,7 +42,9 @@ dependencies:
   google_fonts: ^6.2.1
   shared_preferences: ^2.5.3
   geolocator: ^13.0.2
-  google_maps_flutter: ^2.10.0
+  flutter_map: ^8.2.1
+  latlong2: ^0.9.1
+  flutter_map_dragmarker: ^8.0.3
   flutter_dotenv: ^5.2.1
   flutter_svg: ^2.0.10+1
   smooth_page_indicator: ^1.1.0
