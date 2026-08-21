@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from .storage import SupabaseStorage
 
 
 def profile_image_upload_path(instance, filename):
@@ -14,7 +15,7 @@ def profile_image_upload_path(instance, filename):
     can never serve a stale photo after a new one is uploaded.
     """
     ext = Path(filename).suffix.lower() or ".jpg"
-    return f"profile_images/{instance.pk or 'new'}_{uuid.uuid4().hex}{ext}"
+    return f"users/{instance.pk or 'new'}/{uuid.uuid4().hex}{ext}"
 
 
 # ─────────────────────────────────────────────
@@ -157,7 +158,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     # ── Public profile fields (added for "Your Tribe Status" / "Other User Profile") ──
     # All optional/blank so existing users and existing endpoints are unaffected.
     username = models.CharField(max_length=30, unique=True, null=True, blank=True)
-    profile_image = models.ImageField(upload_to=profile_image_upload_path, blank=True, default="")
+    profile_image = models.ImageField(upload_to=profile_image_upload_path, storage=SupabaseStorage(), blank=True, default="",)
     bio = models.CharField(max_length=280, blank=True, default="")
     age = models.PositiveSmallIntegerField(null=True, blank=True)
     occupation = models.CharField(max_length=150, blank=True, default="")
