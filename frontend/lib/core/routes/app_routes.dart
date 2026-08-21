@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../controllers/profile_setup_controller.dart';
 import '../../controllers/explore_controller.dart';
 import '../../controllers/roommate_quiz_controller.dart';
+import '../../controllers/onboarding_controller.dart';
+import '../../services/auth_service.dart';
 import '../../views/onboarding/onboarding_screen.dart';
 import '../../views/auth/login_screen.dart';
 import '../../views/auth/signup_screen.dart';
@@ -117,6 +119,20 @@ class AppRoutes {
   static final GoRouter router = GoRouter(
     initialLocation: onboarding,
     debugLogDiagnostics: false,
+    redirect: (context, state) async {
+      final loc = state.matchedLocation;
+      final isEntryRoute = loc == '/' || loc == onboarding || loc == login || loc == signup;
+      if (!isEntryRoute) return null;
+
+      final seenOnboarding = await OnboardingController.hasSeenOnboarding();
+      if (!seenOnboarding) {
+        return loc == onboarding ? null : onboarding;
+      }
+
+      final loggedIn = await AuthService.instance.hasActiveSession();
+      if (loggedIn) return home;
+      return (loc == onboarding || loc == '/') ? login : null;
+    },
     routes: [
 
       // ── Auth ──────────────────────────────────────────────────────────────

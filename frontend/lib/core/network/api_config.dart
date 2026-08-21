@@ -3,7 +3,7 @@
 /// IMPORTANT — pick the right base URL for where you're running Django:
 ///   • iOS simulator / Flutter web / macOS / Windows / Linux desktop → 127.0.0.1
 ///   • Android emulator (AVD)                                       → 10.0.2.2
-///   • Physical device on the same WiFi as your dev machine         → your PC's LAN IP (e.g. 192.168.1.50)
+///   • Physical device on the same WiFi as your dev machine         → your PC's LAN IP 192.168.1.75
 ///
 /// Currently set for iOS simulator / web / desktop testing.
 class ApiConfig {

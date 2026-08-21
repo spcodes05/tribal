@@ -200,12 +200,23 @@ class _ActivityResultTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_rounded,
-                          color: AppColors.textHint, size: 12),
+                      const Icon(
+                        Icons.location_on_rounded,
+                        color: AppColors.textHint,
+                        size: 12,
+                      ),
                       const SizedBox(width: 3),
-                      Text(activity.location,
+                      Expanded(
+                        child: Text(
+                          activity.location,
                           style: GoogleFonts.poppins(
-                              fontSize: 11, color: AppColors.textSecondary)),
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ],

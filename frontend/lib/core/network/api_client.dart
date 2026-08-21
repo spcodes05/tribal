@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'api_config.dart';
 import 'token_storage.dart';
+import '../routes/app_routes.dart';
 
 /// Central Dio instance for all backend calls.
 ///
@@ -36,6 +37,9 @@ class ApiClient {
           final isRefreshCall = error.requestOptions.path == ApiConfig.tokenRefresh;
 
           if (isUnauthorized && !isRefreshCall) {
+            final hadRefreshToken =
+                (await TokenStorage.instance.getRefreshToken()) != null;
+
             final refreshed = await _tryRefreshToken();
             if (refreshed != null) {
               // Retry the original request with the new token.
@@ -51,6 +55,10 @@ class ApiClient {
             // Refresh failed (or retry failed) — wipe tokens so the app
             // can detect logged-out state and redirect to login.
             await TokenStorage.instance.clear();
+
+            if (hadRefreshToken) {
+              AppRoutes.router.go(AppRoutes.login);
+            }
           }
 
           handler.next(error);
