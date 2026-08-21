@@ -369,10 +369,16 @@ class InterestsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Return all available interests as [{id, name}] for picker UIs."""
+        """
+        Return all available interests as {"interests": [{id, name}, ...]}
+        for picker UIs. Wrapped (not a bare list) — this matches what
+        OnboardingService.fetchAvailableInterests() and
+        RoommateService._resolveInterestIds() already expect on the
+        frontend, so both keep working unchanged.
+        """
         from apps.users.models import Interest
         interests = Interest.objects.all().order_by('name')
-        return Response([{'id': i.id, 'name': i.name} for i in interests])
+        return Response({'interests': [{'id': i.id, 'name': i.name} for i in interests]})
 
     def post(self, request):
         if not request.user.is_email_verified:
@@ -407,16 +413,6 @@ class InterestsView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
-    def get(self, request):
-        """
-        GET /api/users/interests/
-        Returns the full list of available predefined interests.
-        Useful so the frontend can populate the interests selection screen.
-        """
-        interests = Interest.objects.all().order_by("name")
-        data = [{"id": i.id, "name": i.name} for i in interests]
-        return Response({"interests": data}, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────────────────────
@@ -935,4 +931,3 @@ class ReportUserView(APIView):
             details=serializer.validated_data.get("details", ""),
         )
         return Response({"detail": "Report submitted. Our team will review it."}, status=status.HTTP_201_CREATED)
-

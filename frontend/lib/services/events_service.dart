@@ -120,12 +120,15 @@ class EventsService {
 
   // ── Interests (for tag picker in Create Activity) ─────────────────────────
 
-  /// GET /api/users/interests/ — returns [{id, name}] of all interests.
+  /// GET /api/users/interests/ — returns {"interests": [{id, name}, ...]}.
   /// Used to populate the tag picker in CreateActivityScreen.
+  /// Wrapped shape matches OnboardingService.fetchAvailableInterests() and
+  /// RoommateService._resolveInterestIds(), which hit the same endpoint.
   Future<List<Map<String, dynamic>>> fetchInterests() async {
     try {
       final res = await _dio.get(ApiConfig.interestsList);
-      return (res.data as List).cast<Map<String, dynamic>>();
+      final data = res.data as Map<String, dynamic>;
+      return (data['interests'] as List).cast<Map<String, dynamic>>();
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }
