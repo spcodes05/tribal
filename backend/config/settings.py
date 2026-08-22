@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'channels',
+    'rest_framework_simplejwt.token_blacklist',
 
     # Your apps
     'apps.chat',
@@ -232,7 +233,7 @@ SIMPLE_JWT = {
     # When True, the old refresh token is added to a blacklist after rotation
     # so it can't be reused. Requires 'rest_framework_simplejwt.token_blacklist'
     # in INSTALLED_APPS if you want to use this feature later.
-    "BLACKLIST_AFTER_ROTATION": False,
+    "BLACKLIST_AFTER_ROTATION": True,
 
     # The algorithm used to sign JWTs. HS256 = HMAC with SHA-256.
     "ALGORITHM": "HS256",
