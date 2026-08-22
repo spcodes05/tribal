@@ -36,26 +36,34 @@ class InboxSocketService {
 
   void connect() {
     _manuallyClosed = false;
+    final uri = _buildUri();
+    print('INBOX_WS: connecting to ${uri.replace(queryParameters: {})}');
 
     try {
-      _channel = WebSocketChannel.connect(_buildUri());
-    } catch (_) {
+      _channel = WebSocketChannel.connect(uri);
+    } catch (e) {
+      print('INBOX_WS: connect() threw: $e');
       _scheduleReconnect();
       return;
     }
 
     _subscription = _channel!.stream.listen(
           (raw) {
+        print('INBOX_WS: raw event received: $raw');
         _reconnectAttempt = 0;
         try {
           final decoded = jsonDecode(raw as String) as Map<String, dynamic>;
           _eventController.add(decoded);
-        } catch (_) {
-          // Ignore malformed frames.
+        } catch (e) {
+          print('INBOX_WS: failed to decode event: $e');
         }
       },
-      onError: (_) => _scheduleReconnect(),
+      onError: (e) {
+        print('INBOX_WS: stream error: $e');
+        _scheduleReconnect();
+      },
       onDone: () {
+        print('INBOX_WS: stream closed (onDone)');
         if (!_manuallyClosed) _scheduleReconnect();
       },
       cancelOnError: true,

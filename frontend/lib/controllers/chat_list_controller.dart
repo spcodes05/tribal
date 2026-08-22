@@ -68,23 +68,35 @@ class ChatListController extends ChangeNotifier {
   }
 
   Future<void> _connectInboxSocket() async {
-    if (_inboxSocket != null) return; // already connected/connecting
+    if (_inboxSocket != null) {
+      print('INBOX_CTRL: socket already exists, skipping connect');
+      return;
+    }
 
     final token = await ChatService.instance.getAccessToken();
-    if (token == null || token.isEmpty) return;
+    if (token == null || token.isEmpty) {
+      print('INBOX_CTRL: no access token available, not connecting');
+      return;
+    }
 
+    print('INBOX_CTRL: creating InboxSocketService and connecting');
     _inboxSocket = InboxSocketService(accessToken: token);
     _inboxSocket!.events.listen(_handleInboxEvent);
     _inboxSocket!.connect();
   }
 
   void _handleInboxEvent(Map<String, dynamic> event) {
-    if (event['type'] != 'chat_preview_update') return;
+    print('INBOX_CTRL: event received: $event');
+    if (event['type'] != 'chat_preview_update') {
+      print('INBOX_CTRL: ignoring event, type=${event['type']}');
+      return;
+    }
 
     final chatId = event['chat_id'] as int?;
     if (chatId == null) return;
 
     final index = _chats.indexWhere((c) => c.id == chatId);
+    print('INBOX_CTRL: matched chatId=$chatId at index=$index (have ${_chats.length} chats)');
     if (index == -1) {
       // A brand-new chat we don't have yet (first message ever from a new
       // contact) — simplest correct handling is a one-off re-fetch just
