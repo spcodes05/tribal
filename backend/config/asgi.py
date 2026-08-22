@@ -10,6 +10,13 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from apps.chat import routing
 from apps.chat.middleware import JWTAuthMiddleware
 
+# TEMPORARY DIAGNOSTIC: prints once when the ASGI worker boots, so a
+# `grep ASGI_BOOT` on the Render logs tells you definitively whether the
+# deployed worker is running JWTAuthMiddleware (this file) or an older
+# build still using AuthMiddlewareStack. Safe to remove once the fix is
+# confirmed live in production.
+print("ASGI_BOOT: websocket stack = JWTAuthMiddleware(URLRouter(...))")
+
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,

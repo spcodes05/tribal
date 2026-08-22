@@ -30,14 +30,22 @@ class JWTAuthMiddleware(BaseMiddleware):
 
     async def _get_user_from_scope(self, scope):
         token = self._extract_token(scope)
+        # TEMPORARY DIAGNOSTIC — logs presence/length only, never the token
+        # itself. Remove once WS auth is confirmed working in production.
+        print(f"JWT_MW: token_present={bool(token)} token_len={len(token) if token else 0}")
         if not token:
+            print("JWT_MW: REJECT — no 'token' query param found")
             return AnonymousUser()
 
         user_id = self._decode_token(token)
+        print(f"JWT_MW: decoded_user_id={user_id}")
         if user_id is None:
+            print("JWT_MW: REJECT — AccessToken(token) failed validation (bad signature/expired/malformed)")
             return AnonymousUser()
 
-        return await self._get_user(user_id)
+        user = await self._get_user(user_id)
+        print(f"JWT_MW: resolved_user={'AnonymousUser (no matching CustomUser row)' if not user.is_authenticated else user}")
+        return user
 
     @staticmethod
     def _extract_token(scope) -> str | None:
