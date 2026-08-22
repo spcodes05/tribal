@@ -45,17 +45,26 @@ class ChatSocketService {
   bool get isConnected => _status == ChatSocketStatus.connected;
 
   Uri _buildUri() {
-    // ApiConfig.baseUrl looks like "http://10.0.2.2:8000/api" — strip the
-    // trailing "/api" and swap the scheme for ws/wss to reach the ASGI app
-    // mounted at /ws/chat/<id>/ (see backend/config/asgi.py).
-    final httpBase = ApiConfig.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    final httpBase =
+    ApiConfig.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+
     final base = Uri.parse(httpBase);
+
     final wsScheme = base.scheme == 'https' ? 'wss' : 'ws';
-    return base.replace(
+
+    final uri = base.replace(
       scheme: wsScheme,
       path: '/ws/chat/$chatId/',
-      queryParameters: {'token': accessToken},
+      queryParameters: {
+        'token': accessToken,
+      },
     );
+
+    print('========== WEBSOCKET URL ==========');
+    print(uri);
+    print('====================================');
+
+    return uri;
   }
 
   void connect() {

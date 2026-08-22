@@ -27,6 +27,10 @@ class EventsService {
         'unread_notifications': data['unread_notifications'] as int? ?? 0,
       };
     } on DioException catch (e) {
+      print('HOME FEED DIO ERROR: ${e.message}');
+      print('HOME FEED URL: ${e.requestOptions.uri}');
+      print('HOME FEED STATUS: ${e.response?.statusCode}');
+      print('HOME FEED RESPONSE: ${e.response?.data}');
       throw ApiException.fromDio(e);
     }
   }

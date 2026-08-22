@@ -81,23 +81,42 @@ class ConversationController extends ChangeNotifier {
   }
 
   Future<void> _connectSocket() async {
-    final token = await ChatService.instance.getAccessToken();
-    if (token == null || token.isEmpty) return;
+    print('=== CONNECTING CHAT SOCKET ===');
 
-    _socket = ChatSocketService(chatId: chatId, accessToken: token);
+    final token = await ChatService.instance.getAccessToken();
+
+    print('Token exists: ${token != null && token.isNotEmpty}');
+
+    if (token == null || token.isEmpty) {
+      print('NO ACCESS TOKEN');
+      return;
+    }
+
+    _socket = ChatSocketService(
+      chatId: chatId,
+      accessToken: token,
+    );
+
+    print('Chat ID: $chatId');
 
     _socketStatusSub = _socket!.statusStream.listen((s) {
+      print('SOCKET STATUS: $s');
       _socketStatus = s;
       notifyListeners();
     });
 
-    _socketMsgSub = _socket!.messages.listen(_handleIncomingSocketEvent);
+    _socketMsgSub = _socket!.messages.listen((event) {
+      print('SOCKET MESSAGE RECEIVED: $event');
+      _handleIncomingSocketEvent(event);
+    });
 
     _socketErrorSub = _socket!.errors.listen((msg) {
+      print('SOCKET ERROR: $msg');
       _error = msg;
       notifyListeners();
     });
 
+    print('CALLING SOCKET CONNECT');
     _socket!.connect();
   }
 

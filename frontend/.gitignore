@@ -49,3 +49,7 @@ ios/Flutter/Config.xcconfig
 web/env.js
 android/key.properties
 android/.kotlin/
+
+# Android signing
+android/app/upload-keystore.jks
+android/key.properties
