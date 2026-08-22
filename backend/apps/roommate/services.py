@@ -152,14 +152,22 @@ def find_best_matches(
     tribal_ml_recommender.py docstring) to avoid double-counting the same
     signal.
 
-    Compatibility is a bounded 0-100 score derived from normalized
+        Compatibility is a bounded 0-100 score derived from normalized
     Euclidean distance in the trained feature space (see
     compatibility_from_distance() in the ML module) — identical profiles
     score 100%, and the score decays smoothly rather than collapsing.
+    This value is unchanged by clustering and is what gets displayed/
+    persisted as RoommateMatch.compatibility_score.
 
     K-Means cluster membership is NOT used to filter candidates here —
     every eligible candidate (post hard-filter) is scored, not just
-    same-cluster ones. Cluster is carried through as metadata only.
+    same-cluster ones. It IS used to materially influence ranking order:
+    tribal_ml_recommender.find_matches_among() sorts candidates by
+    recommendation_score (compatibility_score + a fixed same-cluster
+    bonus, see CLUSTER_SAME_BONUS), so candidates in the target user's
+    predicted cluster are prioritized while different-cluster candidates
+    remain available as fallback. That sort order is what this function
+    receives back and preserves.
     """
     target_profile = get_active_profile_for_user(user)
 
@@ -209,6 +217,7 @@ def find_best_matches(
                     "_ml_distance": match["distance"],
                     "_ml_cluster": match["cluster"],
                     "_ml_target_cluster": match["target_cluster"],
+                    "_ml_recommendation_score": match["recommendation_score"],
                 },
                 # The old smoking/budget/cleanliness "deal breaker" caps
                 # were computed inside the removed weighted-scoring

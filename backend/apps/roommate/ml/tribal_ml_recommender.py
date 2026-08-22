@@ -84,12 +84,26 @@ Properties (all deliberately required, not incidental):
     training range could in theory push distance slightly past
     max_distance, which is clipped to 0% rather than going negative)
 
-K-MEANS' ROLE: the cluster assignment is a real output of the trained
-model and is returned as metadata (`cluster`) for transparency/possible
-future grouping features, but cluster membership is NEVER used to filter
-candidates or to compute the compatibility score. Two profiles landing in
-different clusters can still score very highly if they are numerically
-close; two profiles in the same cluster are not automatically compatible.
+K-MEANS' ROLE: cluster membership is a real, materially-used ranking
+signal — NOT just metadata, and NOT a hard filter. `compatibility_score`
+itself is still computed purely from Euclidean distance (unchanged,
+still deterministic/symmetric — see compatibility_from_distance()).
+Separately, `find_matches_among()` computes a `recommendation_score`
+used ONLY for sort order:
+
+    recommendation_score = clip(compatibility_score + CLUSTER_SAME_BONUS
+                                 if candidate_cluster == target_cluster
+                                 else compatibility_score, 0, 100)
+
+CLUSTER_SAME_BONUS (see constant below) is a small, fixed, documented
+point bonus — not a learned weight — added when a candidate's predicted
+cluster matches the target's predicted cluster. Candidates in a
+DIFFERENT cluster from the target are never discarded — they remain
+fully eligible and are returned as fallback, just without the bonus, so
+the system never returns zero recommendations purely because of cluster
+boundaries. This gives the three-stage architecture: hard eligibility
+filters (services.py) -> K-Means cluster-based candidate prioritization
+-> Euclidean feature-space compatibility ranking.
 
 `gender_preference` and `room_type_preference` (who a user is WILLING to
 live with) are NOT part of the trained feature set — see
@@ -161,6 +175,17 @@ _CLUSTER_DATA_PATH = _ARTIFACT_DIR / "tribal_cluster_data.pkl"
 # producing vectors the model was never trained to interpret.
 _EXPECTED_FEATURE_SPACE_VERSION = "domain_weighted_v1"
 _EXPECTED_N_FEATURES = 47
+
+# Fixed, documented ranking bonus applied when a candidate's predicted
+# K-Means cluster matches the target user's predicted cluster. This is
+# what makes cluster membership materially affect final ranking instead
+# of being metadata-only. Deliberately small relative to the 0-100
+# compatibility_score scale (dominated by gender/budget domain weights,
+# see docstring) so it acts as a same-cluster priority/tie-breaker on
+# top of real profile similarity, not a replacement for it. Candidates
+# in a different cluster are never dropped -- they simply don't receive
+# the bonus and remain available as fallback.
+CLUSTER_SAME_BONUS = 5.0
 
 # Fields actually required to build a feature vector. gender_preference
 # and room_type_preference are deliberately NOT in this list — they are
@@ -483,19 +508,28 @@ def find_matches_among(
 
     candidates: list of (user_id, user_data_dict) tuples.
 
-    Ranking:
+        Ranking (cluster-aware, three-stage — see module docstring):
         1. Preprocess the target user's profile (same pipeline as training).
         2. Preprocess every candidate the same way.
-        3. Compute Euclidean distance from target to each candidate —
+        3. Predict the target's K-Means cluster and every candidate's
+           K-Means cluster (trained model, loaded once at import time).
+        4. Compute Euclidean distance from target to each candidate —
            across ALL candidates, not restricted to any single cluster.
-        4. Convert distance -> bounded compatibility_score via
-           compatibility_from_distance().
-        5. Sort descending by compatibility_score, return top N.
+        5. Convert distance -> bounded compatibility_score via
+           compatibility_from_distance() (unchanged, pure-distance,
+           deterministic — used as-is for display).
+        6. Compute recommendation_score = compatibility_score, plus
+           CLUSTER_SAME_BONUS when candidate_cluster == target_cluster,
+           clipped to [0, 100]. This is the sort key.
+        7. Sort descending by recommendation_score (ties broken by
+           compatibility_score), return top N.
 
-    Each result's `cluster` is the CANDIDATE's own predicted cluster —
-    informational metadata only, never used to filter or weight the score.
+    Different-cluster candidates are NEVER filtered out — they remain
+    fully eligible and are simply not boosted, so they still surface as
+    fallback rather than the system returning zero recommendations.
 
-    Returns: [{"user_id", "compatibility_score", "distance", "cluster"}, ...]
+    Returns: [{"user_id", "compatibility_score", "recommendation_score",
+               "distance", "cluster", "target_cluster"}, ...]
     """
     target_vector = _transform(target_user_data)
     target_cluster = int(_MODEL.predict(target_vector)[0])
@@ -518,20 +552,32 @@ def find_matches_among(
     if not candidate_ids:
         return []
 
-    candidate_matrix = np.vstack(candidate_vectors)
+        candidate_matrix = np.vstack(candidate_vectors)
     candidate_clusters = _MODEL.predict(candidate_matrix)
 
     distances = np.linalg.norm(candidate_matrix - target_vector, axis=1)
 
-    results = [
-        {
+    results = []
+    for uid, dist, cand_cluster in zip(candidate_ids, distances, candidate_clusters):
+        compatibility_score = compatibility_from_distance(float(dist))
+        cand_cluster = int(cand_cluster)
+        same_cluster = cand_cluster == target_cluster
+        recommendation_score = float(np.clip(
+            compatibility_score + (CLUSTER_SAME_BONUS if same_cluster else 0.0),
+            0.0, 100.0,
+        ))
+        results.append({
             "user_id": int(uid),
-            "compatibility_score": compatibility_from_distance(float(dist)),
+            "compatibility_score": compatibility_score,
+            "recommendation_score": recommendation_score,
             "distance": float(dist),
-            "cluster": int(cand_cluster),
+            "cluster": cand_cluster,
             "target_cluster": target_cluster,
-        }
-        for uid, dist, cand_cluster in zip(candidate_ids, distances, candidate_clusters)
-    ]
-    results.sort(key=lambda r: r["compatibility_score"], reverse=True)
+        })
+
+    # Cluster-aware ranking: same-cluster candidates are prioritized via
+    # recommendation_score; compatibility_score is the tie-breaker so
+    # ordering within a cluster (and among fallback candidates) still
+    # reflects real profile similarity.
+    results.sort(key=lambda r: (r["recommendation_score"], r["compatibility_score"]), reverse=True)
     return results[:top_n]

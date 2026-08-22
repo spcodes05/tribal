@@ -99,6 +99,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
             },
         )
 
+        # Also notify both participants' personal inbox channels so the
+        # Chat List screen can update its preview (last message, ordering,
+        # unread count) live, without the user needing to be inside this
+        # specific chat room or manually refresh the list.
+        participant_ids = await self._get_participant_ids(self.chat_id)
+        for user_id in participant_ids:
+            await self.channel_layer.group_send(
+                f"user_{user_id}",
+                {
+                    "type": "chat_preview_update",
+                    "chat_id": message.chat_id,
+                    "message_id": message.id,
+                    "sender_id": message.sender_id,
+                    "content": message.content,
+                    "message_type": message.message_type,
+                    "timestamp": message.timestamp.isoformat(),
+                },
+            )
+
     async def chat_message(self, event: dict) -> None:
         """Handler for the 'chat_message' group event type; pushes to the client."""
         await self.send(text_data=json.dumps(event))
@@ -134,3 +153,42 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message = Message.objects.create(chat=chat, sender=sender, content=content)
         chat.save(update_fields=["updated_at"])
         return message
+
+    @database_sync_to_async
+    def _get_participant_ids(self, chat_id):
+        chat = Chat.objects.filter(pk=chat_id).first()
+        if chat is None:
+            return []
+        return [chat.participant_one_id, chat.participant_two_id]
+
+
+class InboxConsumer(AsyncWebsocketConsumer):
+    """
+    Per-user channel (`ws/inbox/`) for the Chat List screen — separate from
+    the per-room `ChatConsumer`. A user joins group `user_<id>` on connect
+    and receives a lightweight event whenever any of their chats gets a new
+    message, so the list can update its preview/ordering/unread badge
+    live without the user having a specific chat open, and without a
+    manual pull-to-refresh.
+
+    Sends no data of its own; purely relays `chat_preview_update` events
+    that `ChatConsumer.receive()` pushes to this group.
+    """
+
+    async def connect(self):
+        self.user = self.scope.get("user")
+
+        if self.user is None or not self.user.is_authenticated:
+            await self.close(code=4001)
+            return
+
+        self.group_name = f"user_{self.user.id}"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code) -> None:
+        if getattr(self, "group_name", None):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def chat_preview_update(self, event: dict) -> None:
+        await self.send(text_data=json.dumps(event))

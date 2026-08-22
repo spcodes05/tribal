@@ -157,6 +157,7 @@ class ChatPreviewSerializer(serializers.ModelSerializer):
             "id": latest.id,
             "sender_id": latest.sender_id,
             "content": latest.content,
+            "message_type": latest.message_type,
             "timestamp": latest.timestamp,
             "is_read": latest.is_read,
         }

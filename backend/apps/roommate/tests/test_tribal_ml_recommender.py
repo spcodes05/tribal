@@ -150,6 +150,16 @@ def test_gender_mismatch_costs_more_than_five_domain_lifestyle_mismatch():
 # 6. Cluster prediction
 # ─────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────
+# 6. Model loading + cluster prediction
+# ─────────────────────────────────────────────────────────────────────
+
+def test_kmeans_model_is_loaded_from_pickle():
+    assert rec._MODEL is not None
+    assert hasattr(rec._MODEL, "predict")
+    assert getattr(rec._MODEL, "feature_space_version", None) == "domain_weighted_v1"
+
+
 def test_predict_cluster_returns_valid_cluster_id():
     a = make_profile()
     cluster = rec.predict_cluster(a)
@@ -158,23 +168,64 @@ def test_predict_cluster_returns_valid_cluster_id():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 7. Different-cluster candidates can still be returned/ranked well
+# 7. Different-cluster candidates are never filtered out (fallback)
 # ─────────────────────────────────────────────────────────────────────
 
-def test_find_matches_among_does_not_filter_by_cluster():
+def test_different_cluster_candidates_remain_available_as_fallback():
+    """Cluster membership affects RANKING (via CLUSTER_SAME_BONUS), not
+    eligibility -- a candidate in a different cluster from the target
+    must still be returned, never silently dropped."""
     target = make_profile()
-    # deliberately pick a candidate whose gender differs (likely a
-    # different cluster, since gender dominates cluster separation) but
-    # whose lifestyle is otherwise identical -- should still appear.
     other_gender_same_lifestyle = make_profile(gender="female")
     candidates = [(1, other_gender_same_lifestyle)]
     matches = rec.find_matches_among(target, candidates, top_n=10)
     assert len(matches) == 1
     assert matches[0]["user_id"] == 1
-    # clusters are informational only -- the match is present regardless
-    # of whether cluster == target_cluster
     assert "cluster" in matches[0]
     assert "target_cluster" in matches[0]
+    assert "recommendation_score" in matches[0]
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 7b. CRITICAL: cluster membership materially affects final ranking
+# ─────────────────────────────────────────────────────────────────────
+
+def test_cluster_aware_ranking_prioritizes_same_cluster_candidate(monkeypatch):
+    """CRITICAL controlled test: two candidates have an IDENTICAL,
+    below-ceiling compatibility_score to the target (same lifestyle
+    deltas, by construction), but their predicted clusters are forced
+    apart via a monkeypatched model.predict. This proves the
+    cluster-aware ranking bonus -- not just compatibility_score --
+    decides final order, i.e. K-Means is not merely called and then
+    ignored. Candidate ids are deliberately assigned so that "same
+    cluster wins" and "first in input order wins" make DIFFERENT
+    predictions, ruling out sort-stability as an alternative
+    explanation."""
+    target = make_profile()
+    candidate_a = make_profile(sleep_schedule="early_bird", smoking="smoker")
+    candidate_b = make_profile(sleep_schedule="early_bird", smoking="smoker")
+    candidates = [(1, candidate_a), (2, candidate_b)]
+
+    def fake_predict(matrix):
+        if matrix.shape[0] == 1:
+            return np.array([0])
+        return np.array([1, 0])  # candidate 1 (id=1) -> different, candidate 2 (id=2) -> same as target
+
+    monkeypatch.setattr(rec._MODEL, "predict", fake_predict)
+
+    matches = rec.find_matches_among(target, candidates, top_n=10)
+    by_id = {m["user_id"]: m for m in matches}
+
+    assert by_id[1]["compatibility_score"] == by_id[2]["compatibility_score"]
+    assert by_id[1]["compatibility_score"] < 95.0
+    assert by_id[2]["compatibility_score"] == by_id[1]["compatibility_score"]
+
+    assert by_id[2]["recommendation_score"] == pytest.approx(
+        by_id[1]["recommendation_score"] + rec.CLUSTER_SAME_BONUS
+    )
+    assert matches[0]["user_id"] == 2
+    assert matches[0]["cluster"] == matches[0]["target_cluster"]
+    assert matches[1]["cluster"] != matches[1]["target_cluster"]
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -199,6 +250,8 @@ def test_closer_profiles_rank_higher():
     assert ranked_ids == [2, 3, 1]
     scores = [m["compatibility_score"] for m in matches]
     assert scores == sorted(scores, reverse=True)
+    rec_scores = [m["recommendation_score"] for m in matches]
+    assert rec_scores == sorted(rec_scores, reverse=True)
 
 
 # ─────────────────────────────────────────────────────────────────────
