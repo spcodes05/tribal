@@ -29,13 +29,10 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG") == "True"
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "10.0.2.2",
-    "192.168.254.195",
-    "192.168.1.75"
-]
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "127.0.0.1,localhost,10.0.2.2,192.168.254.195,192.168.1.75"
+).split(",")
 
 
 # Application definition
@@ -248,7 +245,20 @@ ASGI_APPLICATION = 'config.asgi.application'
 
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
+        #"BACKEND": "channels.layers.InMemoryChannelLayer"
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [
+            {
+                    "address": os.environ.get("REDIS_URL"),
+                    # Must be comfortably longer than channels_redis's internal
+                    # 5s blocking-read timeout (brpop_timeout), or the client's
+                    # own socket read races the server's block and loses,
+                    # raising a spurious redis.exceptions.TimeoutError even
+                    # though Redis was about to respond normally.
+                    "socket_timeout": 20,
+                    "socket_connect_timeout": 10,
+                }
+            ]},
     }
 }
 CORS_ALLOW_ALL_ORIGINS = True
