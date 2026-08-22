@@ -27,9 +27,12 @@ class ChatTile extends StatelessWidget {
     final latest = chat.latestMessage;
     final isMineLatest =
         currentUserId != null && latest != null && latest.senderId == currentUserId;
-    final previewText = latest == null
+    final latestContent = (latest != null && latest.isLiveLocation)
+        ? '📍 Live Location'
+        : latest?.content;
+    final previewText = latestContent == null
         ? chat.lastMessagePreview
-        : (isMineLatest ? 'You: ${latest.content}' : latest.content);
+        : (isMineLatest ? 'You: $latestContent' : latestContent);
 
     return Material(
       color: Colors.transparent,

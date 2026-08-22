@@ -135,6 +135,7 @@ class LatestMessagePreview {
   final String content;
   final DateTime timestamp;
   final bool isRead;
+  final String messageType;
 
   const LatestMessagePreview({
     required this.id,
@@ -142,7 +143,10 @@ class LatestMessagePreview {
     required this.content,
     required this.timestamp,
     required this.isRead,
+    this.messageType = 'TEXT',
   });
+
+  bool get isLiveLocation => messageType == 'LIVE_LOCATION';
 
   factory LatestMessagePreview.fromJson(Map<String, dynamic> json) {
     return LatestMessagePreview(
@@ -151,6 +155,7 @@ class LatestMessagePreview {
       content: json['content'] as String? ?? '',
       timestamp: DateTime.parse(json['timestamp'] as String).toLocal(),
       isRead: json['is_read'] as bool? ?? false,
+      messageType: json['message_type'] as String? ?? 'TEXT',
     );
   }
 }
@@ -195,6 +200,24 @@ class ChatPreviewModel {
       updatedAt: DateTime.parse(json['updated_at'] as String).toLocal(),
     );
   }
+
+  ChatPreviewModel copyWith({
+    LatestMessagePreview? latestMessage,
+    int? unreadCount,
+    DateTime? updatedAt,
+  }) {
+    return ChatPreviewModel(
+      id: id,
+      otherUserId: otherUserId,
+      otherUserFullName: otherUserFullName,
+      otherUserProfileImage: otherUserProfileImage,
+      latestMessage: latestMessage ?? this.latestMessage,
+      unreadCount: unreadCount ?? this.unreadCount,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  /// Up to 2 initials derived from the display name, e.g. "Anisha Tamang" -> "AT".
 
   /// Up to 2 initials derived from the display name, e.g. "Anisha Tamang" -> "AT".
   String get initials {

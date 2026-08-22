@@ -39,6 +39,7 @@ class _ChatViewState extends State<_ChatView> {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
   int _lastMessageCount = 0;
+  bool _didInitialScroll = false;
 
   @override
   void initState() {
@@ -46,8 +47,11 @@ class _ChatViewState extends State<_ChatView> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await context.read<ConversationController>().initialize();
-      if (!mounted) return;
-      _scrollToBottom();
+      // Deliberately not scrolling here — notifyListeners() from
+      // initialize() doesn't rebuild this widget synchronously, so the
+      // ListView is still empty at this point and maxScrollExtent is 0.
+      // The build()-triggered check below fires after the message list
+      // has actually been laid out with real content.
     });
   }
 
@@ -58,13 +62,18 @@ class _ChatViewState extends State<_ChatView> {
     super.dispose();
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animated = true}) {
     if (!_scrollController.hasClients) return;
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    final target = _scrollController.position.maxScrollExtent;
+    if (animated) {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _scrollController.jumpTo(target);
+    }
   }
 
   Future<void> _handleSend() async {
@@ -91,8 +100,28 @@ class _ChatViewState extends State<_ChatView> {
     // Auto-scroll only when a new message actually arrives, not on every
     // unrelated rebuild (e.g. the send button's loading spinner toggling).
     if (ctrl.messages.length != _lastMessageCount) {
+      final isInitialLoad = !_didInitialScroll && ctrl.messages.isNotEmpty;
       _lastMessageCount = ctrl.messages.length;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (isInitialLoad) {
+          _didInitialScroll = true;
+          // Instant jump, no animation — opening a chat should land you
+          // straight at the latest message, not visibly scroll into it.
+          _scrollToBottom(animated: false);
+          // Variable-height bubbles (e.g. multi-line messages, live
+          // location cards) can settle their final layout a frame late,
+          // which throws off maxScrollExtent on the very first jump.
+          // One more jump shortly after catches that without a visible
+          // second scroll motion.
+          Future.delayed(const Duration(milliseconds: 80), () {
+            if (mounted) _scrollToBottom(animated: false);
+          });
+        } else {
+          _scrollToBottom(animated: true);
+        }
+      });
     }
 
     return Scaffold(
