@@ -28,6 +28,29 @@ def _broadcast_to_chat(chat_id, payload):
         return
     async_to_sync(channel_layer.group_send)(f"chat_{chat_id}", payload)
 
+
+def _notify_inbox(chat, message):
+    """
+    Push a `chat_preview_update` event to both participants' personal
+    inbox channels (see apps.chat.consumers.InboxConsumer) so the Chat
+    List screen updates its preview/ordering/unread badge live for
+    messages created outside ChatConsumer.receive() — e.g. the
+    live-location card created below.
+    """
+    channel_layer = get_channel_layer()
+    if channel_layer is None:
+        return
+    for user_id in (chat.participant_one_id, chat.participant_two_id):
+        async_to_sync(channel_layer.group_send)(f"user_{user_id}", {
+            "type": "chat_preview_update",
+            "chat_id": chat.id,
+            "message_id": message.id,
+            "sender_id": message.sender_id,
+            "content": message.content,
+            "message_type": message.message_type,
+            "timestamp": message.timestamp.isoformat(),
+        })
+        
 class SafetySettingsView(generics.RetrieveUpdateAPIView):
     serializer_class = SafetySettingsSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -73,8 +96,10 @@ class SafetySettingsView(generics.RetrieveUpdateAPIView):
         )
 
         trusted_contacts = TrustedContact.objects.filter(owner=user)
+        print(f"LIVE_LOC: starting share, {trusted_contacts.count()} trusted contact(s)")
         for contact in trusted_contacts:
             chat = Chat.get_or_create_chat(user, contact.trusted_user)
+            print(f"LIVE_LOC: chat_id={chat.id} updated_at BEFORE={chat.updated_at}")
             message = Message.objects.create(
                 chat=chat,
                 sender=user,
@@ -82,6 +107,13 @@ class SafetySettingsView(generics.RetrieveUpdateAPIView):
                 message_type=Message.MessageType.LIVE_LOCATION,
                 live_location=session,
             )
+            # Without this, Chat.updated_at never changes, and since
+            # Chat.Meta.ordering = ["-updated_at"], this chat won't move to
+            # the top of the list — neither live nor on a fresh reload.
+            chat.save(update_fields=["updated_at"])
+            chat.refresh_from_db(fields=["updated_at"])
+            print(f"LIVE_LOC: chat_id={chat.id} updated_at AFTER={chat.updated_at}")
+
             _broadcast_to_chat(chat.id, {
                 "type": "chat_message",
                 "message_id": message.id,
@@ -95,6 +127,7 @@ class SafetySettingsView(generics.RetrieveUpdateAPIView):
                 "longitude": None,
                 "timestamp": message.timestamp.isoformat(),
             })
+            _notify_inbox(chat, message)
 
         return session
 
@@ -107,8 +140,10 @@ class SafetySettingsView(generics.RetrieveUpdateAPIView):
         session = LiveLocationSession.objects.filter(
             user=user, status=LiveLocationSession.Status.ACTIVE
         ).first()
-        if not session:
-            return None
+        if session:
+            print(f"LIVE_LOC: reusing EXISTING active session id={session.id} — no new message will be created")
+            return session
+        print("LIVE_LOC: no active session found, creating a new one")
 
         session.status = LiveLocationSession.Status.ENDED
         session.ended_at = timezone.now()
